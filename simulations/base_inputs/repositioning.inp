@@ -1,0 +1,12 @@
+! repositioning.inp
+! NPTS  VWINCH  Kp  Ki
+6   0.05   0.02   0.001
+
+! t[s]   y_target[m]
+0     0
+100   0
+101  50
+300  50
+301 -50
+500 -50
+600   0
