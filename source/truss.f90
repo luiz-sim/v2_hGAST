@@ -354,6 +354,7 @@ END Subroutine MOORINGS_UPDATE_tr
    if (repos_active .and. .not. y_ref_set) then
       y_ref     = y_value
       y_ref_set = .true.
+      write(*,*) 'Repositioning: reference sway set to ', y_ref
    endif
 
 
@@ -375,6 +376,7 @@ Subroutine init_repositioning(path_truss)
 
   repos_active   = .false.
   y_ref_set      = .false.
+  repos_has_moved= .false.
   N_repos_pts    = 0
   N_winch_elem   = 0
   y_ref          = 0.d0
@@ -636,6 +638,11 @@ END Subroutine init_winch_elements
    if (w_sum <= 0.d0) return
 
 !--- distribute the change
+   if (.not. repos_has_moved) then
+      write(*,*) 'Repositioning: applying control at t=', TTIME, ' target=', y_target_curr, ' e=', e, ' dL_step=', dL_step
+      repos_has_moved = .true.
+   endif
+
    do i = 1, N_winch_elem
 
       idx = winch_elem(i)

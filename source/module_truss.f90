@@ -133,6 +133,7 @@
 !-- Repositioning control state
  logical, save              :: repos_active   = .false.
  logical, save              :: y_ref_set      = .false.
+ logical, save              :: repos_has_moved = .false.
  integer, save              :: N_repos_pts    = 0
  integer, save              :: N_winch_elem   = 0
  integer, allocatable, save :: winch_elem(:)
