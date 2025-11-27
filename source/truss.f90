@@ -1,6 +1,18 @@
 !----------------------------------------------------------------------
  Subroutine MOORINGS_tr (TTime, int_type, IP, RLX)
 !----------------------------------------------------------------------
+! Overview / notes for future maintenance:
+! - MOORINGS_tr drives a full time step by looping over sub-steps (NSubTime_tr),
+!   refreshing connection boundary conditions (set_connect_bc), assembling
+!   system matrices (MATRIX_tr, MATRIX_REDUCT_tr) and integrating either
+!   statically or via Newmark (Time_Integrate_tr). The logic assumes all
+!   body properties such as the unstretched element length (ALENG_tr) are
+!   fixed during the iteration; changing them mid-step will require
+!   re-deriving any quantities cached in the body_tr and connect_tr arrays.
+! - Connection loads are accumulated at the end of the loop and mapped back
+!   to the floater/elastic model through truss2float_loads_uncoupl. Any
+!   updates to geometric quantities (e.g., dynamic "Length0" adjustments)
+!   will need to stay consistent with these downstream mappings.
 
  use truss
 
@@ -421,6 +433,14 @@
            body_tr(nb_tr)%Cdnorm_tr   ,&   ! drag coeff for normal     direction
            body_tr(nb_tr)%Cdtang_tr   ,&   ! drag coeff for tangential direction
            body_tr(nb_tr)%Cdfric_tr        !             ****** ATM is no USED!!! ******
+
+!--------- Notes: ALENG_tr is treated as a constant reference length throughout
+!          the module. It feeds seabed interaction stiffness (bed_K/bed_C),
+!          inertia distribution, and hydrodynamic forcing coefficients. If a
+!          future feature needs to update the "Length0"/unstretched length at
+!          runtime, all dependent matrices/loads that are preassembled during
+!          INIT_tr or cached in body_tr(nb_tr)%AKLOC_tr, ACLOC_tr, AQLOC_tr
+!          will have to be rebuilt before the next call to MATRIX_tr.
 
            body_tr(nb_tr)%AQLOC_tr = 0.d0; ! zero for the 1st writeout at time=0
       enddo
