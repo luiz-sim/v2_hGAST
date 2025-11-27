@@ -1,0 +1,14 @@
+** Input geometry for the IEA 15MW Reference Offshore Wind Turbine blade profiles
+11   ! NSPANB
+** r      profil
+0.000	  "CYLINDER.inp"
+3.970	  "CYLINDER.inp"
+6.310     "CYLINDER.inp"
+21.520    "FFA-W3-500.inp"
+32.655    "FFA-W3-360.inp"
+42.445    "FFA-W3-330.inp"
+55.354    "FFA-W3-301.inp"
+66.878    "FFA-W3-270.inp"
+78.640    "FFA-W3-241.inp"
+94.264    "FFA-W3-211.inp"
+120.970   "FFA-W3-211.inp"

@@ -1,0 +1,97 @@
+** dtu controller settings **
+10638.2978 !=10000/0.94 !  1 ; Rated power [kW]
+0.628      !=6.0 rpm    !  2 ; Minimum rotor speed [rad/s]
+1.005      !=9.6 rpm    !  3 ; Rated   rotor speed [rad/s]
+15.6e6                  !  4 ; Maximum allowable generator torque [Nm]
+0.                      !  5 ; Minimum pitch angle, PitchMin [deg], if |PitchMin|>90, then a table of <wsp,PitchMin> is read from a file named 'wptable.n', where n=int(PitchMin)
+90                      !  6 ; Maximum pitch angle [deg]
+10                      !  7 ; Maximum pitch velocity operation [deg/s]
+0.2                     !  8 ; Frequency of generator speed filter [Hz]
+0.7                     !  9 ; Damping ratio of speed filter [-]
+3.33       !1.83        ! 10 ; Frequency of free-free DT torsion mode [Hz], if zero no notch filter used
+** Partial load control parameters
+1.0013e7   !9.50e6      ! 11 ; Optimal Cp tracking K factor [Nm/(rad/s)^2], Qg=K*Omega^2, K=eta*0.5*rho*A*Cp_opt*R^3/lambda_opt^3
+6.83e7     !7.33e7      ! 12 ; Proportional gain of torque controller [Nm/(rad/s)]
+1.53e7     !1.32e7      ! 13 ; Integral gain of torque controller [Nm/rad]
+0.                      ! 14 ; Differential gain of torque controller [Nm/(rad/s^2)]
+** Full load control par!meters
+2                       ! 15 ; Generator control switch [1=constant power, 2=constant torque]
+0.524      !/ 3         ! 16 ; Proportional gain of pitch controller [rad/(rad/s)]
+0.141      !/10         ! 17 ; Integral gain of pitch controller [rad/rad]
+0.                      ! 18 ; Differential gain of pitch controller [rad/(rad/s^2)]
+0.4e-8                  ! 19 ; Proportional power error gain [rad/W]
+0.4e-8                  ! 20 ; Integral power error gain [rad/(Ws)]
+198        !164.13      ! 21 ; Coefficient of linear term in aerodynamic gain scheduling, KK1 [deg]
+693        !702.09      ! 22 ; Coefficient of quadratic term in aerodynamic gain scheduling, KK2 [deg^2], (if zero, KK1 = pitch angle at double gain)
+1.3                     ! 23 ; Relative speed for double nonlinear gain [-]
+** Cut-in simulation parameters
+0.         !0.1         ! 24 ; Cut-in time [s] !qqjim_old, if zero no cut-in simulated
+4.                      ! 25 ; Time delay for soft start of torque [1/1P]
+** Cut-out simulation parameters
+0.                      ! 26 ; Cut-out time [s] !qqjim_old, if zero no cut-out simulated
+5.                      ! 27 ; Time constant for linear torque cut-out [s]
+1.                      ! 28 ; Stop type [1=normal, 2=emergency] !qqjim different
+1.                      ! 29 ; Time delay for pitch stop after shut-down signal [s] !qqjim different
+20.                     ! 30 ; Maximum pitch velocity during initial period of stop [deg/s]
+1.                      ! 31 ; Time period of initial pitch stop phase [s] (maintains pitch speed specified in constant 30) !qqjim different
+10.                     ! 32 ; Maximum pitch velocity during final phase of stop [deg/s] !qqjim different
+** Expert parameters (keep default values unless otherwise given)
+0.5                     ! 33 ; Lower angle above lowest minimum pitch angle for switch [deg]
+0.5                     ! 34 ; Upper angle above lowest minimum pitch angle for switch [deg], if equal then hard switch
+95.                     ! 35 ; Ratio between filtered speed and reference speed for fully open torque limits [%]
+5.                      ! 36 ; Time constant of 1st order filter on wind speed used for minimum pitch [1/1P]
+5.                      ! 37 ; Time constant of 1st order filter on pitch angle used for gain scheduling [1/1P]
+** Drivetrain damper
+1.8e7                   ! 38 ; Proportional gain of active DT damper [Nm/(rad/s)], requires frequency in input 10
+** Overspeed
+10.                     ! 39 ; Overspeed percentage before initiating turbine controller alarm (shut-down) [%]
+** Additional non-linear pitch control term (not used when all zero)
+0.                      ! 40 ; Err0 [rad/s] 
+0.                      ! 41 ; ErrDot0 [rad/s^2]
+0.                      ! 42 ; PitNonLin1 [rad/s]
+** Storm control command
+25.                     ! 43 ; Wind speed 'Vstorm' above which derating of rotor speed is used [m/s]
+45.                     ! 44 ; Cut-out wind speed (only used for derating of rotor speed in storm) [m/s]	  
+** Safety system parameters
+                        ! 45 ; Overspeed percentage before initiating safety system alarm (shut-down) [%]
+                        ! 46 ; Max low-pass filtered tower top acceleration level before initiating turbine controller alarm (shut-down) [m/s^2]
+** Turbine parameter
+                        ! 47 ; Nominal rotor diameter [m]
+** Parameters for rotor inertia reduction in variable speed region
+0.                        48 ; Proportional gain on rotor acceleration in variable speed region [Nm/(rad/s^2)] (not used when zero)
+** Parameters for alternative partial load controller with PI regulated TSR tracking
+0.                      ! 49 ; Optimal tip speed ratio [-] (only used when K=constant 11 = 0 otherwise  Qg=K*Omega^2 is used)
+** Parameters for adding aerodynamic drivetrain damping on gain scheduling
+0.                      ! 50 ; Proportional gain of aerodynamic DT damping [Nm/(rad/s)]
+0.                      ! 51 ; Coefficient of linear term in aerodynamic DT damping scheduling, KK1 [deg]
+0.                      ! 52 ; Coefficient of quadratic term in aerodynamic DT damping scheduling, KK2 [deg^2]
+** Torque exclusion zone
+0.                      ! 53 ; Torque exclusion zone: Low speed [rad/s]
+0.                      ! 54 ; Torque exclusion zone: Low speed generator toque [Nm]
+0.                      ! 55 ; Torque exclusion zone: High speed [rad/s]
+0.                      ! 56 ; Torque exclusion zone: High speed generator toque [Nm]
+0.                      ! 57 ; Time constant of reference switching at exclusion zone [s]
+** DT torsion mode damper
+0.                      ! 58 ; Frequency of notch filter [Hz]
+0.                      ! 59 ; Damping of BP filter [-]
+0.                      ! 60 ; Damping of notch filter [-]
+0.                      ! 61 ; Phase lag of damper [s] =>  max 40*dt 
+** Fore-aft Tower mode damper
+0.                      ! 62 ; Frequency of BP filter [Hz]
+0.                      ! 63 ; Frequency of notch fiter [Hz]
+0.                      ! 64 ; Damping of BP filter [-]
+0.                      ! 65 ; Damping of notch filter [-]
+0.                      ! 66 ; Gain of damper [-]
+0.                      ! 67 ; Phase lag of damper [s] =>  max 40*dt
+0.                      ! 68 ; Time constant of 1st order filter on PWR used for fore-aft Tower mode damper GS [Hz]
+0.                      ! 69 ; Lower PWR limit used for fore-aft Tower mode damper GS [-]
+0.                      ! 70 ; Upper PWR limit used for fore-aft Tower mode damper GS [-]
+** Side-to-side Tower mode filter
+0.                      ! 71 ; Frequency of Tower side-to-sede notch filter [Hz]
+0.                      ! 72 ; Damping of notch filter [-]
+0.                      ! 73 ; Max low-pass filtered tower top acceleration level before initiating safety system alarm (shut-down) [m/s^2]
+** Additional filters
+0.                      ! 74 ; Time constant of 1st order filter on pitch angle used for switch [1/1P]
+0.                      ! 75 ; Time constant of 1st order filter on tower top acceleration used for ShakeGuard [1/1P]
+** Gear ratio
+50.                     ! 76 ; Gear ratio (To be used only if input #2 refers to HSS)

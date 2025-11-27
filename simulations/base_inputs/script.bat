@@ -1,0 +1,2 @@
+export OMP_NUM_THREADS=2
+nohup ~/MANOLO_hGAST/hGAST/hGAST/hGAST &!

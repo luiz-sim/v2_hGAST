@@ -1,0 +1,3 @@
+fuser -k SCR.*
+rm -f *.dat mode* *.out scr fort.* *.sh.* core.* *.bin RERUN.bk
+reset

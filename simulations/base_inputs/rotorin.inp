@@ -1,0 +1,31 @@
+** AERO input file for INNWIND 10MW RWT
+ 11.00   ! Hub Velocity     [m/s]
+000.00   ! Wind yaw         [deg]
+  0.     ! Wind inclination [deg]
+  1.225  ! Air Density      [kg/m^3]
+340.0    ! Speed of sound   [m/s]
+  0.14   ! Shear Exponent   [ - ]
+  0.00   ! Veer             [deg/m] slope of yaw angle / m wrt hub height
+  0      ! wind case        [0:uniform,1:defined wind scenario,2:EOG,3x:ECD,4x:EDC,5x:EWS,6:NTM,7:ETM,8:EWM turb]
+ 50.     ! Vref             [m/s] I:50.00,II:42.50,III:37.50
+  0.16   ! TIref            [ - ] A:0.16,B:0.14,C:0.12
+ 55.     ! Time_gust        [sec]
+  0      ! Turbulent inflow [0:no turb,1:disk,2:rectangular]
+  0.0    ! Time shift of turbulent box [sec]
+
+  0      ! Parked            [0:N,1:Y]                        --- default 0---
+  0      ! Disable BEM       [0:N,1:Y]                        --- default 0---
+  1      ! Dynamic Wake      [0:N,1:Y]                        --- default 1---
+  1      ! Dynamic Stall     [0:N,1:ONERA,2:Beddoes-Leishman] --- default 1---
+  7      ! Strip to start DS
+
+  25.     13.584    ! BEM Radius        [m] [radius after which BEM is solved]
+ 121.119    ! Rotor Radius      [m]
+ 30      ! Strips number (blade elements)
+ 1       ! Tip-losses        [0:N,1:Y] --- default 1 ---
+ 0       ! Hub-losses        [0:N,1:Y] --- default 0 ---
+ 1       ! Tower Shadow      [0:N,1:Y] --- default 1 ---
+ 5.000   ! Tower bottom R    [m]
+ 3.250   ! Tower top    R    [m]
+
+ 0     # ! INDXFlap  [0:Without flaps,1:IFC or IFC+IPC,2:IPC only]

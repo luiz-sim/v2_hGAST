@@ -1,0 +1,85 @@
+** IEA 15MW Floating Offshore Reference WT input file
+** Application Parameters
+ 3   ! Substructure   [0:onshore,1:monopile ,2:jacket    ,3:floating(rig),4:floating(flex)]
+ 0   ! Application    [0:HAWT   ,1:VAWT     ,2:Helicopter]
+ 0   ! Elasticity     [0:FEM    ,1:modal                 ]
+ 1   ! Moorings Truss [0:no     ,1:dicoupled,2:coupled   ]
+ 0   ! Modal Analysis [0:no(td) ,1:no grav  ,2:gravity   ]
+ 1   ! Modal Damping  [0:no     ,1:calculate,2:read      ]
+ 1   ! Aerodynamics   [0:no     ,1:BEM      ,2:Vortex    ]
+ 1   ! Beam Type      [          1:Timo 1st ,2:Euler 2nd ]
+ 0   ! Foundation     [0:AF     ,1:CS       ,2:DS        ]
+ 10   ! Controller     [0:no     ,1:enabled  ,2:iddling   ]
+** Bodies/Sub-Bodies/Elements Parameters
+ 5            ! Total Number of Bodies [jacket not icluded]
+ 3            ! Total Number of blades
+ 7  1  0  1   ! Blades--> subbodies number    AND IDOF_el 0:no elasticity, 1:elasticiy enabled, 2:monopile modelling
+ 1  1  0  1   ! Shaft -->    >>      >>       AND    >>          >>            >>                      >>
+ 1  1  0  1   ! Tower -->    >>      >>       AND    >>          >>            >>                      >>
+ 1  3         ! Type of Loads 1:aero, 2:hydro AND Total number of elements of SubBody 1 (blades)
+ 1  3         !           >>                  AND        >>         >>        SubBody 2 (blades)
+ 1  3         !           >>                  AND        >>         >>        SubBody 3 (blades)
+ 1  3         !           >>                  AND        >>         >>        SubBody 4 (blades)
+ 1  3         !           >>                  AND        >>         >>        SubBody 5 (blades)
+ 1  3         !           >>                  AND        >>         >>        SubBody 6 (blades)
+ 1  2         !           >>                  AND        >>         >>        SubBody 7 (blades)
+ 0  2         !           >>                  AND        >>         >>        SubBody 1 (shaft )
+ 0 10         !           >>                  AND        >>         >>        SubBody 1 (tower )
+** Initial Conditions
+  0              ! Initial static solution [0:no,1:yes]
+000.00           ! Blade 1: Azimuthal position                         [deg]
+ 0.00   0.0000   ! Blade 1: Pitch [for heli also qc and qs], Imbalance [deg]
+ 0.00   0.0000   ! Blade 2: Pitch [for heli also qc and qs], Imbalance [deg]
+ 0.00   0.0000   ! Blade 3: Pitch [for heli also qc and qs], Imbalance [deg]
+ 7.56            ! Rotors Speed [LSS]                                  [RPM]
+  0.0            ! HSS Torque  [not always needed]                     [Nm ]
+0.0       1       ! Initial value surge   ux   AND   active dof [1] or not [0] [ m ]
+0.0       1       ! Initial value sway    uy           >>     >>         >>    [ m ]
+0.0       1       ! Initial value heave   uz           >>     >>         >>    [ m ]
+0.0       1       ! Initial value roll    θx           >>     >>         >>    [deg]
+0.0       1       ! Initial value pitch   θy           >>     >>         >>    [deg]
+0.0       1       ! Initial value yaw     θz           >>     >>         >>    [deg]
+** Geometry parameters
+ 144.386     ! Tower top    Height                    [ m ]
+  15.000     ! Tower bottom Height                    [ m ]
+   0.0       ! Shaft offset from tower top            [ m ]
+  11.320     ! Shaft length                           [ m ]
+   3.940     ! Distance from hub to blade root        [ m ]
+   0.00      ! Yaw  angle of the nacelle              [deg]
+   6.000     ! Tilt angle of the rotor                [deg]
+  -4.000     ! Cone angle of the blade                [deg]
+   7.56      ! Rotors Speed (nominal), defines period [RPM]
+   1.000     ! Gearbox Ratio                          [ - ]
+   0         ! Yaw mechanism [0:no,1:yes]             [ - ]
+99999999999 ! Stiffness of yaw mechanism             [Nm/rad]
+99999999999 ! Damping   of yaw mechanism             [Nm/(rad/s)]
+** Damping coefficients
+  0.0E-03      ! Blade Mass      Rayleigh coefficient
+  0.0E-05      ! Blade Stiffness Rayleigh coefficient
+  0.0E-03      ! Shaft Mass      Rayleigh coefficient
+  0.0E-05      ! Shaft Stiffness Rayleigh coefficient
+  0.0E-03      ! Tower Mass      Rayleigh coefficient
+  0.0E-05      ! Tower Stiffness Rayleigh coefficient
+  0.00477465   ! Blade modal damping ratio
+  0.05         ! Shaft modal damping ratio
+  0.01      ! Tower modal damping ratio
+  0.05  20.0   ! Modal damping ratio and frequency [Hz] for higher modes
+** Simulation/Solution parameters
+  600.00   ! Simulation time [sec]
+  0.15     ! Time-step [sec]
+  0.26     ! Bita coefficient for Newmark Integration
+  0.50     ! Gama coefficient for Newmark Integration
+  0        ! Rerun option [0:no,1:continue from backup file]
+999999     ! Timesteps to keep Backup
+  1.e-05   ! Maximun error convergance criterion
+ 15        ! Maximun number of Iterations per time-step
+** Concentrated masses
+  3   ! Number of Concentrated masses
+** nb    Hta      Xcm   Ycm    Zcm    Mass[kg]       IPx      IPy         IPz   Ixy   Ixz   Iyz  [local body c.s.]
+ 5   129.386    0.00   0.00   0.00    630888.00   7.900629e6    7.558513e6  1.013478e7   0.    0.    0.  ! Nacelle [3.45]
+ 4    11.320    0.00   0.00   0.00     69131.00        0.       9.699520e5      0.       0.    0.    0.  ! Hub
+ 4     0.000    0.00   0.00   0.00         0.          0.       1.715930e7      0.       0.    0.    0.  ! Generator
+** Mechanical losses
+  0                 ! Number of entries
+**INPUT_TRQ [Nm]   LOSSES_TRQ [Nm]
+

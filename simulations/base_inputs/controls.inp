@@ -1,0 +1,101 @@
+**Input for Generic controller of the IEA 15MW FORWT **
+15957.4                !  1 ; Rated power, including electrical losses [kW]
+    1                  !  2 ; LSS(1) or HSS(2) reference [-]
+    0.5236 !=5.0 rpm   !  3 ; Minimum rotor (LSS) speed [rad/s]
+    0.7854   !=7.5 rpm   !  4 ; Rated rotor (LSS) speed [rad/s]
+   2.1765444e7         !  5 ; Maximum allowable generator torque [Nm]
+   00.                 !  6 ; Minimum pitch angle, PitchMin [deg], if |PitchMin|>90, then a table of <wsp,PitchMin> is read from a file named wptable.n, where n=int(PitchMin)
+   90.      #82.00     !  7 ; Maximum pitch angle [deg]
+   2.                 !  8 ; Maximum pitch velocity operation [deg/s]
+**Partial load control parameters
+  29857164.76        !  9 ; Optimal Cp tracking K factor [Nm/(rad/s)^2], Qg=K*Omega^2, K=eta*0.5*rho*A*Cp_opt*R^3/lambda_opt^3
+ 1.64438e8    ! 10 ; Proportional gain of torque controller [Nm/(rad/s)]
+ 3.68998e7    ! 11 ; Integral gain of torque controller [Nm/rad]
+  0.          ! 12 ; Differential gain of torque controller [Nm/(rad/s^2)]
+**Full load control parameters
+  1                 ! 13 ; Generator control switch [1=constant power, 2=constant torque]
+  1.177141   !/ 3   ! 14 ; Proportional gain of pitch controller [rad/(rad/s)]
+  0.421192   !/10   ! 15 ; Integral gain of pitch controller [rad/rad]
+  0.                ! 16 ; Differential gain of pitch controller [rad/(rad/s^2)]
+  0.4e-8            ! 17 ; Proportional power error gain [rad/W]
+  0.4e-8            ! 18 ; Integral power error gain [rad/(Ws)]
+12.03781            ! 19 ; Coefficient of linear term in aerodynamic gain scheduling, KK1 [deg]
+683.03643           ! 20 ; Coefficient of quadratic term in aerodynamic gain scheduling, KK2 [deg^2], (if zero, KK1=pitch angle at double gain)
+  1.2               ! 21 ; Coefficinet of nonlinear gain scheduling [-]
+**Filters
+  1.25   10P     ! 22 ; lowpass2 freq of speed & power error used in pitch PID [Hz]
+  0.7           ! 23 ; lowpass2 damp of speed & power error used in pitch PID [-]
+  3.33  free2   ! 28 ; notch2 freq1 of speed error used in pitch PID [Hz]
+  0.2           ! 29 ; notch2 damp1 of speed error used in pitch PID [-]
+  0.375  3P      ! 24 ; notch2 freq2 of speed error used in pitch PID [Hz]
+  0.2           ! 25 ; notch2 damp2 of speed error used in pitch PID [-]
+  1.21  free1   ! 26 ; notch2 freq3 of speed error used in pitch PID [Hz]
+  0.2           ! 27 ; notch2 damp3 of speed error used in pitch PID [-]
+  2.5   2.5P    ! 30 ; lowpass1 time lag of omega used in GS_NL, Qmax=P/w_LP1 [s]
+  8.00  1P      ! 31 ; lowpass1 time lag of pitch used in GS, (derate) [s]
+  8.00  1P      ! 32 ; lowpass1 time lag of power used in GS_IPC, (min pitch) [s]
+  2.5   2.5P    ! 33 ; lowpass1 time lag of torque used in Torque limits [s]
+**Drive Train Damper
+  1.0e7   ! 34 ; DTD1_gain [Nm/(rad/s^2)] 400*113.2^2=5125696.
+  1.82    ! 35 ; DTD1_freq 1st collective edge [Hz]
+  0.2     ! 36 ; DTD1_damp [-]
+  2.0e7   ! 37 ; DTD2_gain [Nm/(rad/s^2)]
+  3.35    ! 38 ; DTD2_freq 2nd collective edge [Hz]
+  0.2     ! 39 ; DTD2_damp [-]
+  1.0e8   ! 40 ; DTD maximum Torque limit LSS [Nm] ~138kWatt
+**Out-of-plane moments (IPC, IFC)
+  2             ! 41 ; Number of harmonic (0:no,1:1P,2:2P) [-]
+  1.            ! 42 ; GAIN_Pitch (default=1) [-]
+  0.            ! 43 ; GAIN_Flap (default=1) [-]
+  0.01          ! 44 ; GS (<=1) at 80% of Prated LP1 [-]
+  0.  15.00e-11 ! 45 ; Ki (1P)
+  0.  15.00e-10 ! 46 ; Ki (2P)
+  0.  37.50e-11 ! 47 ; Kp (1P)
+  0.  37.50e-10 ! 48 ; Kp (2P)
+  5.            ! 49 ; Maximum Pitch Amplitude [deg]
+ 10.            ! 50 ; Maximum Flap Amplitude [deg]
+ 20             ! 51 ; time step to start IPC [-]
+**Tower Acceleration (Gen,CPC,CFC)
+  0.          ! 52 ; GAIN_Gen (default=1) [-]
+  0.          ! 53 ; GAIN_Pitch (default=1) [-]
+  0.          ! 54 ; GAIN_Flap (default=1) [-]
+  1.   0.01   ! 55 ; GS (<=1) at 80% of Prated LP1 [-]
+ 20.e-10      ! 56 ; Ki
+ 50.e-10      ! 57 ; Kp
+  1.0e5       ! 58 ; Maximum GenTorque Amplitude LSS [Nm] ~138kWatt
+  5.0         ! 59 ; Maximum Pitch Amplitude [deg]
+ 10.0         ! 60 ; Maximum Flap Amplitude [deg]
+ 20           ! 61 ; time step to start TTa control [-]
+**Generator Lag
+  0.02          ! 62 ; generator lag [sec]
+**Pitch Actuator
+  2             ! 63 ; itype ## NOT USED
+  1.0   **1.6   ! 64 ; frequency of pitch actuator [Hz]
+  0.7   **0.8   ! 65 ; damping factor of pitch actuator [-]
+ -5.            ! 66 ; lower angle limit of pitch actuator [deg]
+ 90.0           ! 67 ; upper angle limit of pitch actuator [deg]
+ 10.0           ! 68 ; speed limit of pitch actuator [deg/s]
+ 15.0           ! 69 ; acceleration limit of pitch actuator [deg/s^2]
+**Flap Actuator
+  1      ! 70 ; itype ## NOT USED
+  0.1    ! 71 ; time lag of flap  actuator [Hz]
+-10.     ! 72 ; lower angle limit of flap actuator [deg]
+ 10.0    ! 73 ; upper angle limit of flap actuator [deg]
+ 20.0    ! 74 ; speed limit of flap actuator [deg/s]
+
+
+**Expert
+ 1.02    ! vs_Reg1_lim
+ 0.5     ! vs_pit_switch
+
+** Pending
+Start-up
+Shut down
+Brake
+MLoss
+Faults (blade stuck, emergency shut-down, network loss, short circuit)
+
+monitoring/alarms
+IPC 2P
+IPC: (3P, 4P,...)??
+check TTa, IFC, generator

@@ -1,0 +1,103 @@
+begin dll;
+;
+  begin type2_dll;
+    name dtu_we_controller ;
+    filename  ./control/dtu_we_controller.dll ;
+    dll_subroutine_init init_regulation ;
+    dll_subroutine_update update_regulation ;
+    arraysizes_init  100 1 ;
+    arraysizes_update 100 100 ;
+    begin init ;
+       ; Overall parameters
+      constant   1 10000.0     ; Rated power [kW]
+      constant   2   0.5236    ; Minimum rotor speed [rad/s]
+      constant   3   1.005     ; Rated rotor speed [rad/s]
+      constant   4  15.6E+06   ; Maximum allowable generator torque [Nm]
+      constant   5  0.0      ; Minimum pitch angle, theta_min [deg],
+                                ; if |theta_min|>90, then a table of <wsp,theta_min> is read ;
+                                ; from a file named 'wptable.n', where n=int(theta_min)
+      constant   6  82.0        ; Maximum pitch angle [deg]
+      constant   7  10.0        ; Maximum pitch velocity operation [deg/s]
+      constant   8   0.4        ; Frequency of generator speed filter [Hz]
+      constant   9   0.7        ; Damping ratio of speed filter [-]
+      constant  10   3.43       ; Frequency of free-free DT torsion mode [Hz], if zero no notch filter used
+      ; Partial load control parameters
+      constant  11   13013100.0  ; Optimal Cp tracking K factor [Nm/(rad/s)^2], ;
+                                ; Qg=K*Omega^2, K=eta*0.5*rho*A*Cp_opt*R^3/lambda_opt^3
+      constant  12   0.683456E+08  ; Proportional gain of torque controller [Nm/(rad/s)]
+      constant  13   0.153367E+08  ; Integral gain of torque controller [Nm/rad]
+      constant  14   0.0        ; Differential gain of torque controller [Nm/(rad/s^2)]
+;     Full load control parameters
+      constant  15   1          ; Generator control switch [1=constant power, 2=constant torque]
+      constant  16   0.524485E+00  ; Proportional gain of pitch controller [rad/(rad/s)]
+      constant  17   0.141233E+00  ; Integral gain of pitch controller [rad/rad]
+      constant  18   0.0        ; Differential gain of pitch controller [rad/(rad/s^2)]
+      constant  19   0.4e-8     ; Proportional power error gain [rad/W]
+      constant  20   0.4e-8     ; Integral power error gain [rad/(Ws)]
+      constant  21   198.32888  ; Coefficient of linear term in aerodynamic gain scheduling, KK1 [deg]
+      constant  22   693.22213  ; Coefficient of quadratic term in aerodynamic gain scheduling, KK2 [deg^2] &
+                                ; (if zero, KK1 = pitch angle at double gain)
+      constant  23   1.3        ; Relative speed for double nonlinear gain [-]
+;     Cut-in simulation parameters
+      constant  24  -1  ; Cut-in time [s]
+      constant  25  1.0   ; Time delay for soft start of torque [1/1P]
+;     Cut-out simulation parameters
+      constant  26  -1  ; Cut-out time [s]
+      constant  27   5.0  ; Time constant for linear torque cut-out [s]
+      constant  28  1    ; Stop type [1=normal, 2=emergency]
+      constant  29  1.0  ; Time delay for pitch stop after shut-down signal [s]
+      constant  30  3  ; Maximum pitch velocity during initial period of stop [deg/s]
+      constant  31  3.0  ; Time period of initial pitch stop phase [s] (maintains pitch speed specified in constant 30)
+      constant  32  4  ; Maximum pitch velocity during final phase of stop [deg/s]
+;     Expert parameters (keep default values unless otherwise given)
+      constant  33   2.0    ; Lower angle above lowest minimum pitch angle for switch [deg]
+      constant  34   2.0    ; Upper angle above lowest minimum pitch angle for switch [deg], if equal then hard switch
+      constant  35  95.0    ; Ratio between filtered speed and reference speed for fully open torque limits [%]
+      constant  36   2.0    ; Time constant of 1st order filter on wind speed used for minimum pitch [1/1P]
+      constant  37   1.0    ; Time constant of 1st order filter on pitch angle used for gain scheduling [1/1P]
+;     Drivetrain damper
+      constant  38   0.0    ; Proportional gain of active DT damper [Nm/(rad/s)], requires frequency in input 10
+;     Over speed
+      constant  39  25.0    ; Overspeed percentage before initiating turbine controller alarm (shut-down) [%]
+;     Additional non-linear pitch control term (not used when all zero)
+      constant  40   0.0    ; Err0 [rad/s]
+      constant  41   0.0    ; ErrDot0 [rad/s^2]
+      constant  42   0.0    ; PitNonLin1 [rad/s]
+;     Storm control command
+      constant 43   28.0    ; Wind speed 'Vstorm' above which derating of rotor speed is used [m/s]
+      constant 44   28.0    ; Cut-out wind speed (only used for derating of rotor speed in storm) [m/s]
+;     Safety system parameters
+      constant 45   30.0  ; Overspeed percentage before initiating safety system alarm (shut-down) [%]
+      constant 46    1.5  ; Max low-pass filtered tower top acceleration level [m/s^2] - max in DLC 1.3=1.1 m/s^2
+;     Turbine parameter
+      constant 47  178.0  ; Nominal rotor diameter [m]
+;     Parameters for rotor inertia reduction in variable speed region
+      constant 48    0.0  ; Proportional gain on rotor acceleration in variable speed region [Nm/(rad/s^2)] (not used when zero)
+;     Parameters for alternative partial load controller with PI regulated TSR tracking
+      constant 49    7.8  ; Optimal tip speed ratio [-] (only used when K=constant 11 = 0 otherwise  Qg=K*Omega^2 is used)
+;     Parameters for adding aerodynamic drivetrain damping on gain scheduling
+      constant 50    0.0  ; Proportional gain of aerodynamic DT damping [Nm/(rad/s)]
+      constant 51    0.0  ; Coefficient of linear term in aerodynamic DT damping scheduling, KK1 [deg]
+      constant 52    0.0  ; Coefficient of quadratic term in aerodynamic DT damping scheduling, KK2 [deg^2]
+    end init ;
+;
+    begin output ;
+      general time ; [s]
+      constraint bearing1 shaft_rot 1 only 2 ; Drivetrain speed [rad/s]
+      constraint bearing2 pitch1 1 only 1; [rad]
+      constraint bearing2 pitch2 1 only 1; [rad]
+      constraint bearing2 pitch3 1 only 1; [rad]
+      wind free_wind 1 0.0 0.0 -119      ; Wind speed at hub height [m/s]
+      dll inpvec 1 5                     ; Elec. power from generator servo .dll [W]
+      general constant 0                 ; Grid state flag from generator servo .dll
+      mbdy state acc towertop   1 1.0 global only 1 ; Tower top x-acceleration [m/s^2]
+      mbdy state acc towertop   1 1.0 global only 2 ; Tower top y-acceleration [m/s^2]
+    end output;
+   begin actions;
+      mbdy moment_int shaft 1 3 shaft towertop 2 ;   Generator LSS torque [Nm]
+      constraint bearing2 angle pitch1 ; Angle pitch1 bearing    [rad]
+      constraint bearing2 angle pitch2 ; Angle pitch2 bearing    [rad]
+      constraint bearing2 angle pitch3 ; Angle pitch3 bearing    [rad]
+   end actions;
+  end type2_dll;
+end dll;

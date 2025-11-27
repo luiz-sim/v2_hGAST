@@ -1,0 +1,20 @@
+"./dfile_el.inp"                                  ! file_dfile_el
+"./rotorin.inp"                                   ! file_rotorin
+"./hydro.inp "                                    ! file_hydro
+" "                                               ! file_jacket
+"./machi.inp"                                     ! file_machi
+"./geomb.inp"                                     ! file_geomb
+"./profilb.inp"                                   ! file_profilb
+"./"                                              ! dir_airfoils
+"./drag.inp"                                      ! file_drag
+"./floater.inp"                                   ! file_floater
+"./diffract.inp"                                  ! file_diffract
+"./retard0.inp"                                   ! file_retard
+"./morison.inp"                                   ! file_morison
+"./truss.inp"                                     ! file_truss
+"~/hGAST/wind_15MW.dir/13.00ms/R1/INWIND.DAT"     ! file_wind
+" "                                               ! dir_wave
+" "                                               ! file_springs
+"./CSTR.inp"                                      ! file_cstr
+" "                                               ! file_dllname
+" "                                               ! file_dllcfg
