@@ -130,6 +130,26 @@
  integer, save              :: IREDUCT_tr
  integer, save              :: IWRITE_truss         !-- 1 output elem
 !----------------------------------------------------------------------
+!-- Repositioning control state
+ logical, save              :: repos_active   = .false.
+ logical, save              :: y_ref_set      = .false.
+ integer, save              :: N_repos_pts    = 0
+ integer, save              :: N_winch_elem   = 0
+ integer, allocatable, save :: winch_elem(:)
+ real(8), allocatable, save :: t_repos   (:)
+ real(8), allocatable, save :: y_repos   (:)
+ real(8), allocatable, save :: ALENG0_tr(:)
+ real(8), allocatable, save :: ALENG_ctrl(:)
+ real(8), allocatable, save :: ALENG_min(:)
+ real(8), allocatable, save :: ALENG_max(:)
+ real(8), save              :: repos_Kp      = 0.d0
+ real(8), save              :: repos_Ki      = 0.d0
+ real(8), save              :: repos_vwinch  = 0.d0
+ real(8), save              :: y_ref         = 0.d0
+ real(8), save              :: y_target_curr = 0.d0
+ real(8), save              :: y_err_int     = 0.d0
+ real(8), save              :: y_float       = 0.d0
+!----------------------------------------------------------------------
 !-- Global truss matrices
  real(8), allocatable, save :: AM_tr          (:,:  )      !(NDFT_tr,NDFT_tr)
  real(8), allocatable, save :: AC_tr          (:,:  )      !(NDFT_tr,NDFT_tr)

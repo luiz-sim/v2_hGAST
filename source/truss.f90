@@ -1,8 +1,21 @@
 !----------------------------------------------------------------------
  Subroutine MOORINGS_tr (TTime, int_type, IP, RLX)
 !----------------------------------------------------------------------
+! Overview / notes for future maintenance:
+! - MOORINGS_tr drives a full time step by looping over sub-steps (NSubTime_tr),
+!   refreshing connection boundary conditions (set_connect_bc), assembling
+!   system matrices (MATRIX_tr, MATRIX_REDUCT_tr) and integrating either
+!   statically or via Newmark (Time_Integrate_tr). The logic assumes all
+!   body properties such as the unstretched element length (ALENG_tr) are
+!   fixed during the iteration; changing them mid-step will require
+!   re-deriving any quantities cached in the body_tr and connect_tr arrays.
+! - Connection loads are accumulated at the end of the loop and mapped back
+!   to the floater/elastic model through truss2float_loads_uncoupl. Any
+!   updates to geometric quantities (e.g., dynamic "Length0" adjustments)
+!   will need to stay consistent with these downstream mappings.
 
  use truss
+ use Cbeam
 
    implicit none
 
@@ -17,6 +30,8 @@
    UT1_tr(1:NDFT_tr) = UTPP1_tr(1:NDFT_tr);
    UT2_tr(1:NDFT_tr) = UTPP2_tr(1:NDFT_tr);
 
+   call set_floater_sway(R_float(2))
+
    do nt = 1, NSubTime_tr
 
       UTP_tr (1:NDFT_tr) = UT_tr (1:NDFT_tr);
@@ -25,6 +40,8 @@
 
       TIME_tr  = TTime - DT_tr * dble(NSubTime_tr-nt)
       ICONV_tr = 0
+
+      call update_repositioning(TIME_tr, DT_tr)
 
       call set_connect_bc(nt)                                            !-- set the connection vars, based on floater's motion
 
@@ -320,7 +337,294 @@
    enddo !nc
 
 
- END Subroutine MOORINGS_UPDATE_tr
+END Subroutine MOORINGS_UPDATE_tr
+!----------------------------------------------------------------------
+ Subroutine set_floater_sway(y_value)
+!----------------------------------------------------------------------
+
+ use truss
+
+   implicit none
+
+   real(8), intent(in) :: y_value
+
+
+   y_float = y_value
+
+   if (repos_active .and. .not. y_ref_set) then
+      y_ref     = y_value
+      y_ref_set = .true.
+   endif
+
+
+ END Subroutine set_floater_sway
+!----------------------------------------------------------------------
+ Subroutine init_repositioning()
+!----------------------------------------------------------------------
+
+ use truss
+
+   implicit none
+
+   integer :: ios, i
+   character(len=256) :: line, line_trim
+   character(len=*), parameter :: fname = 'repositioning.inp'
+
+
+   repos_active   = .false.
+   y_ref_set      = .false.
+   N_repos_pts    = 0
+   N_winch_elem   = 0
+   y_ref          = 0.d0
+   y_target_curr  = 0.d0
+   y_err_int      = 0.d0
+
+   if (allocated(t_repos   )) deallocate(t_repos)
+   if (allocated(y_repos   )) deallocate(y_repos)
+   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
+   if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
+   if (allocated(ALENG_min )) deallocate(ALENG_min)
+   if (allocated(ALENG_max )) deallocate(ALENG_max)
+   if (allocated(winch_elem)) deallocate(winch_elem)
+
+   open (unit=33, file=trim(fname), status='old', iostat=ios)
+
+   if (ios /= 0) return
+
+!------ find the first non-comment line with controller constants
+   do
+      read (33,'(A)', iostat=ios) line
+      if (ios /= 0) then
+         close(33)
+         return
+      endif
+
+      line_trim = adjustl(line)
+
+      if (len_trim(line_trim) == 0) cycle
+      if (line_trim(1:1) == '!') cycle
+
+      read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
+      if (ios /= 0 .or. N_repos_pts <= 0) then
+         close(33)
+         return
+      endif
+      exit
+   enddo
+
+   allocate ( t_repos(1:N_repos_pts), stat=ios )
+   if (ios /= 0) then
+      close(33)
+      return
+   endif
+
+   allocate ( y_repos(1:N_repos_pts), stat=ios )
+   if (ios /= 0) then
+      deallocate(t_repos)
+      close(33)
+      return
+   endif
+
+   do i = 1, N_repos_pts
+
+      do
+         read (33,'(A)', iostat=ios) line
+
+         if (ios /= 0) then
+            close(33)
+            deallocate(t_repos, y_repos)
+            return
+         endif
+
+         line_trim = adjustl(line)
+
+         if (len_trim(line_trim) == 0) cycle
+         if (line_trim(1:1) == '!') cycle
+
+         read (line_trim,*, iostat=ios) t_repos(i), y_repos(i)
+         if (ios /= 0) then
+            close(33)
+            deallocate(t_repos, y_repos)
+            return
+         endif
+
+         exit
+      enddo
+
+   enddo
+
+   repos_active = .true.
+
+   close(33)
+
+
+ END Subroutine init_repositioning
+!----------------------------------------------------------------------
+ Subroutine init_winch_elements()
+!----------------------------------------------------------------------
+
+ use truss
+
+   implicit none
+
+   integer :: e, ios
+
+
+   if (.not. repos_active) return
+
+   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
+   if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
+   if (allocated(ALENG_min )) deallocate(ALENG_min)
+   if (allocated(ALENG_max )) deallocate(ALENG_max)
+   if (allocated(winch_elem)) deallocate(winch_elem)
+
+   allocate ( ALENG0_tr (NBODT_tr), stat=ios )
+   if (ios /= 0) then
+      repos_active = .false.
+      return
+   endif
+
+   allocate ( ALENG_ctrl(NBODT_tr), stat=ios )
+   if (ios /= 0) then
+      repos_active = .false.
+      deallocate(ALENG0_tr)
+      return
+   endif
+
+   allocate ( ALENG_min (NBODT_tr), stat=ios )
+   if (ios /= 0) then
+      repos_active = .false.
+      deallocate(ALENG0_tr, ALENG_ctrl)
+      return
+   endif
+
+   allocate ( ALENG_max (NBODT_tr), stat=ios )
+   if (ios /= 0) then
+      repos_active = .false.
+      deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min)
+      return
+   endif
+
+   do e = 1, NBODT_tr
+      ALENG0_tr (e) = body_tr(e)%ALENG_tr
+      ALENG_ctrl(e) = ALENG0_tr(e)
+      ALENG_min (e) = 0.7d0  * ALENG0_tr(e)
+      ALENG_max (e) = 1.05d0 * ALENG0_tr(e)
+   enddo
+
+   N_winch_elem = min(5, NBODT_tr)
+
+   if (N_winch_elem <= 0) then
+      repos_active = .false.
+      return
+   endif
+
+   allocate ( winch_elem(1:N_winch_elem), stat=ios )
+   if (ios /= 0) then
+      repos_active = .false.
+      return
+   endif
+
+   do e = 1, N_winch_elem
+      winch_elem(e) = e
+   enddo
+
+
+ END Subroutine init_winch_elements
+!----------------------------------------------------------------------
+ Subroutine update_repositioning(TTIME, DT)
+!----------------------------------------------------------------------
+
+ use truss
+
+   implicit none
+
+   real(8), intent(in) :: TTIME
+   real(8), intent(in) :: DT
+
+   real(8) :: e, dL_total_dt, dL_step
+   real(8) :: w_sum
+   integer :: i, idx
+
+
+   if (.not. repos_active) return
+   if (N_winch_elem <= 0) return
+   if (.not. y_ref_set) return
+
+!--- interpolate current target
+   if (TTIME <= t_repos(1)) then
+
+      y_target_curr = y_repos(1)
+
+   elseif (TTIME >= t_repos(N_repos_pts)) then
+
+      y_target_curr = y_repos(N_repos_pts)
+
+   else
+
+      do i = 1, N_repos_pts-1
+         if ( (TTIME >= t_repos(i)) .and. (TTIME <= t_repos(i+1)) ) then
+            if (t_repos(i+1) > t_repos(i)) then
+               y_target_curr = y_repos(i) + &
+                 (y_repos(i+1)-y_repos(i)) * (TTIME - t_repos(i)) / (t_repos(i+1)-t_repos(i))
+            else
+               y_target_curr = y_repos(i)
+            endif
+            exit
+         endif
+      enddo
+
+   endif
+
+!--- control law
+   e         = y_target_curr - (y_float - y_ref)
+   y_err_int = y_err_int + e * DT
+
+   dL_total_dt = repos_Kp * e + repos_Ki * y_err_int
+
+   if (dL_total_dt >  repos_vwinch) dL_total_dt =  repos_vwinch
+   if (dL_total_dt < -repos_vwinch) dL_total_dt = -repos_vwinch
+
+   dL_step = dL_total_dt * DT
+
+   if (dL_step == 0.d0) return
+
+!--- count available segments
+   w_sum = 0.d0
+
+   if (dL_step < 0.d0) then
+      do i = 1, N_winch_elem
+         idx = winch_elem(i)
+         if (ALENG_ctrl(idx) > ALENG_min(idx)) w_sum = w_sum + 1.d0
+      enddo
+   else
+      do i = 1, N_winch_elem
+         idx = winch_elem(i)
+         if (ALENG_ctrl(idx) < ALENG_max(idx)) w_sum = w_sum + 1.d0
+      enddo
+   endif
+
+   if (w_sum <= 0.d0) return
+
+!--- distribute the change
+   do i = 1, N_winch_elem
+
+      idx = winch_elem(i)
+
+      if ( (dL_step < 0.d0) .and. (ALENG_ctrl(idx) <= ALENG_min(idx)) ) cycle
+      if ( (dL_step > 0.d0) .and. (ALENG_ctrl(idx) >= ALENG_max(idx)) ) cycle
+
+      ALENG_ctrl(idx) = ALENG_ctrl(idx) + dL_step / w_sum
+
+      if (ALENG_ctrl(idx) < ALENG_min(idx)) ALENG_ctrl(idx) = ALENG_min(idx)
+      if (ALENG_ctrl(idx) > ALENG_max(idx)) ALENG_ctrl(idx) = ALENG_max(idx)
+
+      body_tr(idx)%ALENG_tr = ALENG_ctrl(idx)
+
+   enddo
+
+
+ END Subroutine update_repositioning
 !----------------------------------------------------------------------
  Subroutine INIT_tr ( GRAV_in, rho_in, depth_in, DT_in, path )
 !----------------------------------------------------------------------
@@ -421,6 +725,14 @@
            body_tr(nb_tr)%Cdnorm_tr   ,&   ! drag coeff for normal     direction
            body_tr(nb_tr)%Cdtang_tr   ,&   ! drag coeff for tangential direction
            body_tr(nb_tr)%Cdfric_tr        !             ****** ATM is no USED!!! ******
+
+!--------- Notes: ALENG_tr is treated as a constant reference length throughout
+!          the module. It feeds seabed interaction stiffness (bed_K/bed_C),
+!          inertia distribution, and hydrodynamic forcing coefficients. If a
+!          future feature needs to update the "Length0"/unstretched length at
+!          runtime, all dependent matrices/loads that are preassembled during
+!          INIT_tr or cached in body_tr(nb_tr)%AKLOC_tr, ACLOC_tr, AQLOC_tr
+!          will have to be rebuilt before the next call to MATRIX_tr.
 
            body_tr(nb_tr)%AQLOC_tr = 0.d0; ! zero for the 1st writeout at time=0
       enddo
@@ -587,6 +899,12 @@
    UT2_tr   = 0.d0;   UTP2_tr  = 0.d0;   UTPP2_tr = 0.d0;
 
 
+!--- Optional repositioning controller
+   call init_repositioning()
+
+   if (repos_active) call init_winch_elements()
+
+
 !------ calculate total length
       ALENGP  = 0.d0
    do nb_tr   = 1, NBODT_tr
@@ -618,6 +936,14 @@
                 UT2_tr , UTP2_tr , UTPP2_tr , AK_tr ,&
                                               AQ_tr     )
    Deallocate ( INDSYSB_tr )
+
+   if (allocated(t_repos   )) deallocate(t_repos)
+   if (allocated(y_repos   )) deallocate(y_repos)
+   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
+   if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
+   if (allocated(ALENG_min )) deallocate(ALENG_min)
+   if (allocated(ALENG_max )) deallocate(ALENG_max)
+   if (allocated(winch_elem)) deallocate(winch_elem)
 
 
  END Subroutine FINIT_tr
