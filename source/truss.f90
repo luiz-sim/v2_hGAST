@@ -359,25 +359,27 @@ END Subroutine MOORINGS_UPDATE_tr
 
  END Subroutine set_floater_sway
 !----------------------------------------------------------------------
- Subroutine init_repositioning()
+Subroutine init_repositioning(path_truss)
 !----------------------------------------------------------------------
 
  use truss
 
    implicit none
 
-   integer :: ios, i
-   character(len=256) :: line, line_trim
-   character(len=*), parameter :: fname = 'repositioning.inp'
+  integer :: ios, i, last_slash
+  character(len=256) :: line, line_trim
+  character(len=*), parameter :: fname = 'repositioning.inp'
+  character(len=*), intent(in) :: path_truss
+  character(len=256) :: candidate
 
 
-   repos_active   = .false.
-   y_ref_set      = .false.
-   N_repos_pts    = 0
-   N_winch_elem   = 0
-   y_ref          = 0.d0
-   y_target_curr  = 0.d0
-   y_err_int      = 0.d0
+  repos_active   = .false.
+  y_ref_set      = .false.
+  N_repos_pts    = 0
+  N_winch_elem   = 0
+  y_ref          = 0.d0
+  y_target_curr  = 0.d0
+  y_err_int      = 0.d0
 
    if (allocated(t_repos   )) deallocate(t_repos)
    if (allocated(y_repos   )) deallocate(y_repos)
@@ -387,9 +389,32 @@ END Subroutine MOORINGS_UPDATE_tr
    if (allocated(ALENG_max )) deallocate(ALENG_max)
    if (allocated(winch_elem)) deallocate(winch_elem)
 
-   open (unit=33, file=trim(fname), status='old', iostat=ios)
+  candidate = fname
 
-   if (ios /= 0) return
+!--- try alongside the truss input path first, then fall back to cwd
+  last_slash = 0
+
+  do i = len_trim(path_truss), 1, -1
+     if (path_truss(i:i) == '/') then
+        last_slash = i
+        exit
+     endif
+  enddo
+
+  if (last_slash > 0) then
+     candidate = trim(path_truss(1:last_slash)) // fname
+  endif
+
+  open (unit=33, file=trim(candidate), status='old', iostat=ios)
+
+  if (ios /= 0) then
+     open (unit=33, file=trim(fname), status='old', iostat=ios)
+  endif
+
+  if (ios /= 0) then
+     write(*,*) 'Repositioning: input file not found, controller disabled'
+     return
+  endif
 
 !------ find the first non-comment line with controller constants
    do
@@ -454,6 +479,8 @@ END Subroutine MOORINGS_UPDATE_tr
    enddo
 
    repos_active = .true.
+
+   write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki
 
    close(33)
 
@@ -529,8 +556,10 @@ END Subroutine MOORINGS_UPDATE_tr
       winch_elem(e) = e
    enddo
 
+   write(*,*) 'Repositioning: controlling', N_winch_elem, 'elements starting at index 1'
 
- END Subroutine init_winch_elements
+
+END Subroutine init_winch_elements
 !----------------------------------------------------------------------
  Subroutine update_repositioning(TTIME, DT)
 !----------------------------------------------------------------------
@@ -900,7 +929,7 @@ END Subroutine MOORINGS_UPDATE_tr
 
 
 !--- Optional repositioning controller
-   call init_repositioning()
+   call init_repositioning(path)
 
    if (repos_active) call init_winch_elements()
 
@@ -938,12 +967,12 @@ END Subroutine MOORINGS_UPDATE_tr
    Deallocate ( INDSYSB_tr )
 
    if (allocated(t_repos   )) deallocate(t_repos)
-   if (allocated(y_repos   )) deallocate(y_repos)
-   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
-   if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
-   if (allocated(ALENG_min )) deallocate(ALENG_min)
-   if (allocated(ALENG_max )) deallocate(ALENG_max)
-   if (allocated(winch_elem)) deallocate(winch_elem)
+    if (allocated(y_repos   )) deallocate(y_repos)
+    if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
+    if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
+    if (allocated(ALENG_min )) deallocate(ALENG_min)
+    if (allocated(ALENG_max )) deallocate(ALENG_max)
+    if (allocated(winch_elem)) deallocate(winch_elem)
 
 
  END Subroutine FINIT_tr
