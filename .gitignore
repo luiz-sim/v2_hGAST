@@ -1,0 +1,7 @@
+*.o
+*.mod
+*.exe
+*.out
+/build/
+hGAST
+
