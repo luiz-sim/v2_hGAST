@@ -1,0 +1,12 @@
+** Input geometry for INNWIND 10MW wind turbine
+ 8      ! NSPANB
+   r          profil 
+ 0.000  	"CYLINDER.inp"
+ 2.800  	"CYLINDER.inp"
+ 17.180       	"FFA-W3-600.inp"
+ 20.884       	"FFA-W3-480.inp"
+ 28.165       	"FFA-W3-360.inp"
+ 36.337       	"FFA-W3-301.inp"
+ 63.453       	"FFA-W3-241.inp"
+189.167       	"FFA-W3-241.inp"
+
