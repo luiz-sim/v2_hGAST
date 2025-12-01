@@ -433,6 +433,7 @@ Subroutine init_repositioning(path_truss)
 
       read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
       if (ios /= 0 .or. N_repos_pts <= 0) then
+         write(*,*) 'Repositioning: failed to read header (NPTS/VWINCH/Kp/Ki); controller disabled'
          close(33)
          return
       endif
@@ -441,12 +442,14 @@ Subroutine init_repositioning(path_truss)
 
    allocate ( t_repos(1:N_repos_pts), stat=ios )
    if (ios /= 0) then
+      write(*,*) 'Repositioning: failed to allocate target time array; controller disabled'
       close(33)
       return
    endif
 
    allocate ( y_repos(1:N_repos_pts), stat=ios )
    if (ios /= 0) then
+      write(*,*) 'Repositioning: failed to allocate target sway array; controller disabled'
       deallocate(t_repos)
       close(33)
       return
@@ -470,6 +473,7 @@ Subroutine init_repositioning(path_truss)
 
          read (line_trim,*, iostat=ios) t_repos(i), y_repos(i)
          if (ios /= 0) then
+            write(*,*) 'Repositioning: failed to read point ', i, '; controller disabled'
             close(33)
             deallocate(t_repos, y_repos)
             return
