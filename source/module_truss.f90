@@ -131,16 +131,18 @@
  integer, save              :: IWRITE_truss         !-- 1 output elem
 !----------------------------------------------------------------------
 !-- Repositioning control state
- logical, save              :: repos_active   = .false.
- logical, save              :: y_ref_set      = .false.
- logical, save              :: repos_has_moved = .false.
- integer, save              :: N_repos_pts    = 0
- integer, save              :: N_winch_elem   = 0
- integer, allocatable, save :: winch_elem(:)
- real(8), allocatable, save :: t_repos   (:)
- real(8), allocatable, save :: y_repos   (:)
- real(8), allocatable, save :: ALENG0_tr(:)
- real(8), allocatable, save :: ALENG_ctrl(:)
+logical, save              :: repos_active   = .false.
+logical, save              :: y_ref_set      = .false.
+logical, save              :: repos_has_moved = .false.
+integer, save              :: N_repos_pts    = 0
+integer, save              :: N_winch_elem_neg = 0
+integer, save              :: N_winch_elem_pos = 0
+integer, allocatable, save :: winch_elem_neg(:)
+integer, allocatable, save :: winch_elem_pos(:)
+real(8), allocatable, save :: t_repos   (:)
+real(8), allocatable, save :: y_repos   (:)
+real(8), allocatable, save :: ALENG0_tr(:)
+real(8), allocatable, save :: ALENG_ctrl(:)
  real(8), allocatable, save :: ALENG_min(:)
  real(8), allocatable, save :: ALENG_max(:)
  real(8), save              :: repos_Kp      = 0.d0

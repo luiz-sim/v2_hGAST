@@ -378,18 +378,20 @@ Subroutine init_repositioning(path_truss)
   y_ref_set      = .false.
   repos_has_moved= .false.
   N_repos_pts    = 0
-  N_winch_elem   = 0
+  N_winch_elem_neg = 0
+  N_winch_elem_pos = 0
   y_ref          = 0.d0
   y_target_curr  = 0.d0
   y_err_int      = 0.d0
 
    if (allocated(t_repos   )) deallocate(t_repos)
    if (allocated(y_repos   )) deallocate(y_repos)
-   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
-   if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
-   if (allocated(ALENG_min )) deallocate(ALENG_min)
-   if (allocated(ALENG_max )) deallocate(ALENG_max)
-   if (allocated(winch_elem)) deallocate(winch_elem)
+  if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
+  if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
+  if (allocated(ALENG_min )) deallocate(ALENG_min)
+  if (allocated(ALENG_max )) deallocate(ALENG_max)
+  if (allocated(winch_elem_neg)) deallocate(winch_elem_neg)
+  if (allocated(winch_elem_pos)) deallocate(winch_elem_pos)
 
   candidate = fname
 
@@ -493,7 +495,7 @@ Subroutine init_repositioning(path_truss)
 
  END Subroutine init_repositioning
 !----------------------------------------------------------------------
- Subroutine init_winch_elements()
+Subroutine init_winch_elements()
 !----------------------------------------------------------------------
 
  use truss
@@ -501,6 +503,11 @@ Subroutine init_repositioning(path_truss)
    implicit none
 
    integer :: e, ios
+   integer :: nb, prev_end, line_count
+   integer, allocatable :: line_start(:), line_end(:), line_top_node(:)
+   real(8), allocatable :: line_top_y(:)
+   integer :: idx_neg, idx_pos, segs
+   real(8) :: y_min, y_max
 
 
    if (.not. repos_active) return
@@ -509,7 +516,8 @@ Subroutine init_repositioning(path_truss)
    if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
    if (allocated(ALENG_min )) deallocate(ALENG_min)
    if (allocated(ALENG_max )) deallocate(ALENG_max)
-   if (allocated(winch_elem)) deallocate(winch_elem)
+   if (allocated(winch_elem_neg)) deallocate(winch_elem_neg)
+   if (allocated(winch_elem_pos)) deallocate(winch_elem_pos)
 
    allocate ( ALENG0_tr (NBODT_tr), stat=ios )
    if (ios /= 0) then
@@ -545,24 +553,95 @@ Subroutine init_repositioning(path_truss)
       ALENG_max (e) = 1.05d0 * ALENG0_tr(e)
    enddo
 
-   N_winch_elem = min(5, NBODT_tr)
-
-   if (N_winch_elem <= 0) then
-      repos_active = .false.
-      return
-   endif
-
-   allocate ( winch_elem(1:N_winch_elem), stat=ios )
+!--- Identify line groupings based on contiguous connectivity
+   allocate(line_start(NBODT_tr), line_end(NBODT_tr), line_top_node(NBODT_tr), line_top_y(NBODT_tr), stat=ios)
    if (ios /= 0) then
       repos_active = .false.
+      deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max)
       return
    endif
 
-   do e = 1, N_winch_elem
-      winch_elem(e) = e
+   prev_end   = -1
+   line_count = 0
+
+   do nb = 1, NBODT_tr
+      if (nb == 1 .or. body_tr(nb)%INODE_tr(1) /= prev_end) then
+         line_count = line_count + 1
+         line_start(line_count) = nb
+      endif
+
+      line_end     (line_count) = nb
+      line_top_node(line_count) = body_tr(nb)%INODE_tr(2)
+      prev_end                   = body_tr(nb)%INODE_tr(2)
    enddo
 
-   write(*,*) 'Repositioning: controlling', N_winch_elem, 'elements starting at index 1'
+   if (line_count <= 0) then
+      repos_active = .false.
+      deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y)
+      return
+   endif
+
+!--- Choose the lines with the most negative and most positive sway positions
+   y_min  =  huge(1.d0)
+   y_max  = -huge(1.d0)
+   idx_neg = 1
+   idx_pos = 1
+
+   do nb = 1, line_count
+      line_top_y(nb) = XG_tr(2, line_top_node(nb))
+      if (line_top_y(nb) < y_min) then
+         y_min  = line_top_y(nb)
+         idx_neg = nb
+      endif
+      if (line_top_y(nb) > y_max) then
+         y_max  = line_top_y(nb)
+         idx_pos = nb
+      endif
+   enddo
+
+!--- Select top elements from each extreme line
+   N_winch_elem_neg = 0
+   N_winch_elem_pos = 0
+
+   segs = line_end(idx_neg) - line_start(idx_neg) + 1
+   if (segs > 0) then
+      N_winch_elem_neg = min(5, segs)
+      allocate(winch_elem_neg(N_winch_elem_neg), stat=ios)
+      if (ios /= 0) then
+         repos_active = .false.
+         deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y)
+         return
+      endif
+      do e = 1, N_winch_elem_neg
+         winch_elem_neg(e) = line_end(idx_neg) - (e-1)
+      enddo
+   endif
+
+   if (line_count > 1) then
+      segs = line_end(idx_pos) - line_start(idx_pos) + 1
+      if (segs > 0) then
+         N_winch_elem_pos = min(5, segs)
+         allocate(winch_elem_pos(N_winch_elem_pos), stat=ios)
+         if (ios /= 0) then
+            repos_active = .false.
+            deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y, winch_elem_neg)
+            return
+         endif
+         do e = 1, N_winch_elem_pos
+            winch_elem_pos(e) = line_end(idx_pos) - (e-1)
+         enddo
+      endif
+   endif
+
+   if (N_winch_elem_neg + N_winch_elem_pos <= 0) then
+      repos_active = .false.
+      deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y)
+      return
+   endif
+
+   write(*,*) 'Repositioning: controlling ', N_winch_elem_neg, ' elems on Y=', y_min, ' and ', N_winch_elem_pos, ' elems on Y=', y_max
+
+   deallocate(line_start, line_end, line_top_node, line_top_y)
 
 
 END Subroutine init_winch_elements
@@ -578,15 +657,18 @@ END Subroutine init_winch_elements
    real(8), intent(in) :: DT
 
    real(8) :: e, dL_total_dt, dL_step
-   real(8) :: w_sum
-   integer :: i, idx
+   real(8) :: mag_step, short_step, long_step
+   integer :: i
+   logical :: applied
 
 
    if (.not. repos_active) return
-   if (N_winch_elem <= 0) return
+   if ( (N_winch_elem_neg + N_winch_elem_pos) <= 0 ) return
    if (.not. y_ref_set) return
 
 !--- interpolate current target
+   y_target_curr = y_repos(1)
+
    if (TTIME <= t_repos(1)) then
 
       y_target_curr = y_repos(1)
@@ -624,45 +706,85 @@ END Subroutine init_winch_elements
 
    if (dL_step == 0.d0) return
 
-!--- count available segments
-   w_sum = 0.d0
+   mag_step   = dabs(dL_step)
+   short_step = -0.5d0 * mag_step
+   long_step  =  0.5d0 * mag_step
+   applied    = .false.
 
-   if (dL_step < 0.d0) then
-      do i = 1, N_winch_elem
-         idx = winch_elem(i)
-         if (ALENG_ctrl(idx) > ALENG_min(idx)) w_sum = w_sum + 1.d0
-      enddo
+!--- If we have both sides, shorten the line on the side of the error and pay out the opposite side.
+!--- If we only have one line selected, fall back to the single-line behaviour using the signed dL_step.
+   if ( (N_winch_elem_neg > 0) .and. (N_winch_elem_pos > 0) ) then
+
+      if (e >= 0.d0) then
+         call apply_winch_step(winch_elem_neg, N_winch_elem_neg, short_step, applied)
+         call apply_winch_step(winch_elem_pos, N_winch_elem_pos,  long_step, applied)
+      else
+         call apply_winch_step(winch_elem_pos, N_winch_elem_pos, short_step, applied)
+         call apply_winch_step(winch_elem_neg, N_winch_elem_neg,  long_step, applied)
+      endif
+
    else
-      do i = 1, N_winch_elem
-         idx = winch_elem(i)
-         if (ALENG_ctrl(idx) < ALENG_max(idx)) w_sum = w_sum + 1.d0
-      enddo
+
+      if (N_winch_elem_neg > 0) call apply_winch_step(winch_elem_neg, N_winch_elem_neg, dL_step, applied)
+      if (N_winch_elem_pos > 0) call apply_winch_step(winch_elem_pos, N_winch_elem_pos, dL_step, applied)
+
    endif
 
-   if (w_sum <= 0.d0) return
-
-!--- distribute the change
-   if (.not. repos_has_moved) then
+   if (applied .and. .not. repos_has_moved) then
       write(*,*) 'Repositioning: applying control at t=', TTIME, ' target=', y_target_curr, ' e=', e, ' dL_step=', dL_step
       repos_has_moved = .true.
    endif
 
-   do i = 1, N_winch_elem
 
-      idx = winch_elem(i)
+ Contains
 
-      if ( (dL_step < 0.d0) .and. (ALENG_ctrl(idx) <= ALENG_min(idx)) ) cycle
-      if ( (dL_step > 0.d0) .and. (ALENG_ctrl(idx) >= ALENG_max(idx)) ) cycle
+   Subroutine apply_winch_step(elems, N_elems, delta, applied_any)
 
-      ALENG_ctrl(idx) = ALENG_ctrl(idx) + dL_step / w_sum
+     integer, intent(in)  :: N_elems
+     integer, intent(in)  :: elems(N_elems)
+     real(8), intent(in)  :: delta
+     logical, intent(inout) :: applied_any
 
-      if (ALENG_ctrl(idx) < ALENG_min(idx)) ALENG_ctrl(idx) = ALENG_min(idx)
-      if (ALENG_ctrl(idx) > ALENG_max(idx)) ALENG_ctrl(idx) = ALENG_max(idx)
+     real(8) :: w_sum
+     integer :: k, idx
 
-      body_tr(idx)%ALENG_tr = ALENG_ctrl(idx)
+     if (N_elems <= 0) return
+     if (delta == 0.d0) return
 
-   enddo
+     w_sum = 0.d0
 
+     if (delta < 0.d0) then
+        do k = 1, N_elems
+           idx = elems(k)
+           if (ALENG_ctrl(idx) > ALENG_min(idx)) w_sum = w_sum + 1.d0
+        enddo
+     else
+        do k = 1, N_elems
+           idx = elems(k)
+           if (ALENG_ctrl(idx) < ALENG_max(idx)) w_sum = w_sum + 1.d0
+        enddo
+     endif
+
+     if (w_sum <= 0.d0) return
+
+     do k = 1, N_elems
+
+        idx = elems(k)
+
+        if ( (delta < 0.d0) .and. (ALENG_ctrl(idx) <= ALENG_min(idx)) ) cycle
+        if ( (delta > 0.d0) .and. (ALENG_ctrl(idx) >= ALENG_max(idx)) ) cycle
+
+        ALENG_ctrl(idx) = ALENG_ctrl(idx) + delta / w_sum
+
+        if (ALENG_ctrl(idx) < ALENG_min(idx)) ALENG_ctrl(idx) = ALENG_min(idx)
+        if (ALENG_ctrl(idx) > ALENG_max(idx)) ALENG_ctrl(idx) = ALENG_max(idx)
+
+        body_tr(idx)%ALENG_tr = ALENG_ctrl(idx)
+        applied_any = .true.
+
+     enddo
+
+   END Subroutine apply_winch_step
 
  END Subroutine update_repositioning
 !----------------------------------------------------------------------
@@ -983,7 +1105,8 @@ END Subroutine init_winch_elements
     if (allocated(ALENG_ctrl)) deallocate(ALENG_ctrl)
     if (allocated(ALENG_min )) deallocate(ALENG_min)
     if (allocated(ALENG_max )) deallocate(ALENG_max)
-    if (allocated(winch_elem)) deallocate(winch_elem)
+    if (allocated(winch_elem_neg)) deallocate(winch_elem_neg)
+    if (allocated(winch_elem_pos)) deallocate(winch_elem_pos)
 
 
  END Subroutine FINIT_tr
