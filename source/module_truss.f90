@@ -150,6 +150,7 @@ real(8), allocatable, save :: ALENG_ctrl(:)
  real(8), save              :: repos_vwinch  = 0.d0
  real(8), save              :: y_ref         = 0.d0
  real(8), save              :: y_target_curr = 0.d0
+ real(8), save              :: y_target_prev = 0.d0
  real(8), save              :: y_err_int     = 0.d0
  real(8), save              :: y_float       = 0.d0
 !----------------------------------------------------------------------

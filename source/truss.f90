@@ -382,6 +382,7 @@ Subroutine init_repositioning(path_truss)
   N_winch_elem_pos = 0
   y_ref          = 0.d0
   y_target_curr  = 0.d0
+  y_target_prev  = 0.d0
   y_err_int      = 0.d0
 
    if (allocated(t_repos   )) deallocate(t_repos)
@@ -487,6 +488,12 @@ Subroutine init_repositioning(path_truss)
    enddo
 
    repos_active = .true.
+
+   if (N_repos_pts >= 1) then
+      y_target_prev = y_repos(1)
+   else
+      y_target_prev = 0.d0
+   endif
 
    write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki
 
@@ -695,6 +702,11 @@ END Subroutine init_winch_elements
 
 !--- control law
    e         = y_target_curr - (y_float - y_ref)
+   if (dabs(y_target_curr - y_target_prev) > 1.0d-9) then
+      y_err_int      = 0.d0
+      y_target_prev  = y_target_curr
+   endif
+
    y_err_int = y_err_int + e * DT
 
    dL_total_dt = repos_Kp * e + repos_Ki * y_err_int
@@ -704,9 +716,9 @@ END Subroutine init_winch_elements
 
    dL_step = dL_total_dt * DT
 
-   if (dL_step == 0.d0) return
-
    mag_step   = dabs(dL_step)
+   if (mag_step == 0.d0) return
+
    short_step = -0.5d0 * mag_step
    long_step  =  0.5d0 * mag_step
    applied    = .false.
@@ -716,17 +728,30 @@ END Subroutine init_winch_elements
    if ( (N_winch_elem_neg > 0) .and. (N_winch_elem_pos > 0) ) then
 
       if (e >= 0.d0) then
-         call apply_winch_step(winch_elem_neg, N_winch_elem_neg, short_step, applied)
-         call apply_winch_step(winch_elem_pos, N_winch_elem_pos,  long_step, applied)
-      else
          call apply_winch_step(winch_elem_pos, N_winch_elem_pos, short_step, applied)
          call apply_winch_step(winch_elem_neg, N_winch_elem_neg,  long_step, applied)
+      else
+         call apply_winch_step(winch_elem_neg, N_winch_elem_neg, short_step, applied)
+         call apply_winch_step(winch_elem_pos, N_winch_elem_pos,  long_step, applied)
       endif
 
    else
 
-      if (N_winch_elem_neg > 0) call apply_winch_step(winch_elem_neg, N_winch_elem_neg, dL_step, applied)
-      if (N_winch_elem_pos > 0) call apply_winch_step(winch_elem_pos, N_winch_elem_pos, dL_step, applied)
+      if (N_winch_elem_pos > 0) then
+         if (e >= 0.d0) then
+            call apply_winch_step(winch_elem_pos, N_winch_elem_pos, short_step, applied)
+         else
+            call apply_winch_step(winch_elem_pos, N_winch_elem_pos, -short_step, applied)
+         endif
+      endif
+
+      if (N_winch_elem_neg > 0) then
+         if (e >= 0.d0) then
+            call apply_winch_step(winch_elem_neg, N_winch_elem_neg,  long_step, applied)
+         else
+            call apply_winch_step(winch_elem_neg, N_winch_elem_neg, -long_step, applied)
+         endif
+      endif
 
    endif
 
