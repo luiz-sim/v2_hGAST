@@ -384,6 +384,10 @@ Subroutine init_repositioning(path_truss)
   y_target_curr  = 0.d0
   y_target_prev  = 0.d0
   y_err_int      = 0.d0
+  repos_Kd       = 0.d0
+  repos_DB_pos   = 0.d0
+  repos_DB_vel   = 0.d0
+  ydot_float     = 0.d0
 
    if (allocated(t_repos   )) deallocate(t_repos)
    if (allocated(y_repos   )) deallocate(y_repos)
@@ -434,9 +438,17 @@ Subroutine init_repositioning(path_truss)
       if (len_trim(line_trim) == 0) cycle
       if (line_trim(1:1) == '!') cycle
 
-      read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
+      read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki, repos_Kd, repos_DB_pos, repos_DB_vel
       if (ios /= 0 .or. N_repos_pts <= 0) then
-         write(*,*) 'Repositioning: failed to read header (NPTS/VWINCH/Kp/Ki); controller disabled'
+         ios = 0
+         repos_Kd     = 0.d0
+         repos_DB_pos = 0.d0
+         repos_DB_vel = 0.d0
+         read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
+      endif
+
+      if (ios /= 0 .or. N_repos_pts <= 0) then
+         write(*,*) 'Repositioning: failed to read header (NPTS/VWINCH/Kp/Ki[/Kd/DBpos/DBvel]); controller disabled'
          close(33)
          return
       endif
@@ -495,7 +507,7 @@ Subroutine init_repositioning(path_truss)
       y_target_prev = 0.d0
    endif
 
-   write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki
+   write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki, ' Kd=', repos_Kd, ' DBpos=', repos_DB_pos, ' DBvel=', repos_DB_vel
 
    close(33)
 
@@ -657,16 +669,18 @@ END Subroutine init_winch_elements
 !----------------------------------------------------------------------
 
  use truss
+ use Cbeam, only: DR_float
 
    implicit none
 
    real(8), intent(in) :: TTIME
    real(8), intent(in) :: DT
 
-   real(8) :: e, dL_total_dt, dL_step
+   real(8) :: e, e_eff, dL_total_dt, dL_step
    real(8) :: mag_step, short_step, long_step
+   real(8) :: ydot_curr
    integer :: i
-   logical :: applied
+   logical :: applied, in_pos_db, in_vel_db
 
 
    if (.not. repos_active) return
@@ -700,16 +714,28 @@ END Subroutine init_winch_elements
 
    endif
 
-!--- control law
+!--- control law with deadband and damping
    e         = y_target_curr - (y_float - y_ref)
+   ydot_curr = DR_float(2)
+   ydot_float = ydot_curr
+
    if (dabs(y_target_curr - y_target_prev) > 1.0d-9) then
       y_err_int      = 0.d0
       y_target_prev  = y_target_curr
    endif
 
-   y_err_int = y_err_int + e * DT
+!--- Stop integrating inside the position deadband and damp sway when moving fast
+   in_pos_db = dabs(e        ) <= repos_DB_pos
+   in_vel_db = dabs(ydot_curr) <= repos_DB_vel
 
-   dL_total_dt = repos_Kp * e + repos_Ki * y_err_int
+   if (.not. in_pos_db) y_err_int = y_err_int + e * DT
+
+   e_eff = e
+   if (in_pos_db) e_eff = 0.d0
+
+   dL_total_dt = repos_Kp * e_eff + repos_Ki * y_err_int - repos_Kd * ydot_curr
+
+   if (in_pos_db .and. in_vel_db) dL_total_dt = 0.d0
 
    if (dL_total_dt >  repos_vwinch) dL_total_dt =  repos_vwinch
    if (dL_total_dt < -repos_vwinch) dL_total_dt = -repos_vwinch

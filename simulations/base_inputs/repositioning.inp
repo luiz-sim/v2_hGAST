@@ -1,6 +1,6 @@
 ! repositioning.inp
-! NPTS  VWINCH  Kp  Ki
-6   0.05   0.02   0.001
+! NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel
+6   0.05   0.02   0.001  0.02  1.0  0.05
 
 ! t[s]   y_target[m]
 0     0
