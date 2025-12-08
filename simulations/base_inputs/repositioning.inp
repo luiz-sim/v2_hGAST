@@ -1,5 +1,31 @@
 ! repositioning.inp
-! NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel
+! -----------------------------------------------------------------------------
+! Header format (one line):
+!   NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel
+! where
+!   - Kp, Ki: PI gains acting on sway error (positive error shortens the
+!     upwind line / pays out the downwind line depending on the sign).
+!   - Kd: virtual damping opposing sway velocity (in m/s); larger Kd reduces
+!     oscillations but slows the maneuver. Start small (e.g. 10–30% of Kp in
+!     equivalent units) and increase until the sway response is acceptably
+!     overdamped without stalling.
+!   - DBpos: position deadband [m]. Inside this band, proportional action is
+!     suppressed and the integral term pauses to prevent windup.
+!   - DBvel: velocity deadband [m/s]. When both |error| <= DBpos and
+!     |ydot| <= DBvel, winching stops entirely so the controller does not
+!     re-energize low-damped modes near the target.
+!   - VWINCH: rate limit [m/s] applied to the commanded rest-length change.
+! Tuning guidance:
+!   1) Pick VWINCH based on desired slew speed of the winch hardware.
+!   2) Increase Kp until the floater tracks ramps without steady-state bias.
+!   3) Add Ki slowly to eliminate residual bias while keeping the response
+!      smooth (beware of oscillations if Ki is too high).
+!   4) Add Kd to damp sway/roll coupling; raise it until overshoot disappears
+!      but the motion still progresses. If response becomes sluggish, back off
+!      Kd or slightly raise Kp.
+!   5) Set DBpos and DBvel to the “done” tolerance (e.g. a few meters and a few
+!      cm/s) so actuation stops when close and slow.
+! -----------------------------------------------------------------------------
 6   0.05   0.02   0.001  0.02  1.0  0.05
 
 ! t[s]   y_target[m]
