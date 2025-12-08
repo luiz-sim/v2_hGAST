@@ -57,6 +57,18 @@ built only with BEM support:
 ** Environmental excitation
       velhub.dat
       z_elevation.dat
+** Mooring repositioning diagnostics
+      repositioning_log.dat : Controller log written every truss time step (no header)
+       1: Time                      [s  ]
+       2: Target sway (y_target)    [m  ]
+       3: Floater sway (y_float)    [m  ]
+       4: Floater sway velocity     [m/s]
+       5: Position error (e)        [m  ]
+       6: Deadbanded error (e_eff)  [m  ]
+       7: Integrated error          [m*s]
+       8: Commanded dL/dt           [m/s]
+       9: Applied dL over the step  [m  ]
+      10..(9+Nlines): Total rest length of each mooring line [m] (lines follow the order detected in truss.inp)
 ** Modal analysis
       eigen.dat
       modeRZZZ.dat        ,ZZZ:mode,

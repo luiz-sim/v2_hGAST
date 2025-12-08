@@ -128,7 +128,7 @@
  integer, save              :: IYN_Morison_tr
  integer, save              :: IYN_SeabedInt_tr
  integer, save              :: IREDUCT_tr
- integer, save              :: IWRITE_truss         !-- 1 output elem
+integer, save              :: IWRITE_truss         !-- 1 output elem
 !----------------------------------------------------------------------
 !-- Repositioning control state
 logical, save              :: repos_active   = .false.
@@ -137,8 +137,11 @@ logical, save              :: repos_has_moved = .false.
 integer, save              :: N_repos_pts    = 0
 integer, save              :: N_winch_elem_neg = 0
 integer, save              :: N_winch_elem_pos = 0
+integer, save              :: repos_line_count = 0
  integer, allocatable, save :: winch_elem_neg(:)
  integer, allocatable, save :: winch_elem_pos(:)
+ integer, allocatable, save :: repos_line_start(:)
+ integer, allocatable, save :: repos_line_end(:)
  real(8), allocatable, save :: t_repos   (:)
  real(8), allocatable, save :: y_repos   (:)
  real(8), allocatable, save :: ALENG0_tr(:)
@@ -151,6 +154,8 @@ integer, save              :: N_winch_elem_pos = 0
  real(8), save              :: repos_vwinch  = 0.d0
  real(8), save              :: repos_DB_pos  = 0.d0
  real(8), save              :: repos_DB_vel  = 0.d0
+integer, save              :: repos_log_unit = -1
+logical, save              :: repos_log_open = .false.
  real(8), save              :: y_ref         = 0.d0
  real(8), save              :: y_target_curr = 0.d0
  real(8), save              :: y_target_prev = 0.d0

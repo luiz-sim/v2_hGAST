@@ -380,6 +380,7 @@ Subroutine init_repositioning(path_truss)
   N_repos_pts    = 0
   N_winch_elem_neg = 0
   N_winch_elem_pos = 0
+  repos_line_count = 0
   y_ref          = 0.d0
   y_target_curr  = 0.d0
   y_target_prev  = 0.d0
@@ -389,6 +390,10 @@ Subroutine init_repositioning(path_truss)
   repos_DB_vel   = 0.d0
   ydot_float     = 0.d0
 
+  if (repos_log_unit > 0) close(repos_log_unit)
+  repos_log_unit = -1
+  repos_log_open = .false.
+
    if (allocated(t_repos   )) deallocate(t_repos)
    if (allocated(y_repos   )) deallocate(y_repos)
   if (allocated(ALENG0_tr )) deallocate(ALENG0_tr)
@@ -397,6 +402,8 @@ Subroutine init_repositioning(path_truss)
   if (allocated(ALENG_max )) deallocate(ALENG_max)
   if (allocated(winch_elem_neg)) deallocate(winch_elem_neg)
   if (allocated(winch_elem_pos)) deallocate(winch_elem_pos)
+  if (allocated(repos_line_start)) deallocate(repos_line_start)
+  if (allocated(repos_line_end  )) deallocate(repos_line_end  )
 
   candidate = fname
 
@@ -600,6 +607,21 @@ Subroutine init_winch_elements()
       return
    endif
 
+   repos_line_count = line_count
+   if (allocated(repos_line_start)) deallocate(repos_line_start)
+   if (allocated(repos_line_end  )) deallocate(repos_line_end  )
+
+   allocate(repos_line_start(repos_line_count), repos_line_end(repos_line_count), stat=ios)
+   if (ios /= 0) then
+      repos_active = .false.
+      repos_line_count = 0
+      deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y)
+      return
+   endif
+
+   repos_line_start(1:repos_line_count) = line_start(1:line_count)
+   repos_line_end  (1:repos_line_count) = line_end  (1:line_count)
+
 !--- Choose the lines with the most negative and most positive sway positions
    y_min  =  huge(1.d0)
    y_max  = -huge(1.d0)
@@ -654,11 +676,25 @@ Subroutine init_winch_elements()
 
    if (N_winch_elem_neg + N_winch_elem_pos <= 0) then
       repos_active = .false.
+      repos_line_count = 0
+      if (allocated(repos_line_start)) deallocate(repos_line_start)
+      if (allocated(repos_line_end  )) deallocate(repos_line_end  )
       deallocate(ALENG0_tr, ALENG_ctrl, ALENG_min, ALENG_max, line_start, line_end, line_top_node, line_top_y)
       return
    endif
 
    write(*,*) 'Repositioning: controlling ', N_winch_elem_neg, ' elems on Y=', y_min, ' and ', N_winch_elem_pos, ' elems on Y=', y_max
+
+   if (repos_log_unit > 0) close(repos_log_unit)
+   repos_log_unit = 77
+   open(unit=repos_log_unit, file='repositioning_log.dat', status='replace', action='write', iostat=ios)
+   if (ios /= 0) then
+      repos_log_unit = -1
+      repos_log_open = .false.
+      write(*,*) 'Repositioning: failed to open repositioning_log.dat; logging disabled'
+   else
+      repos_log_open = .true.
+   endif
 
    deallocate(line_start, line_end, line_top_node, line_top_y)
 
@@ -742,6 +778,8 @@ END Subroutine init_winch_elements
 
    dL_step = dL_total_dt * DT
 
+   call write_repos_log(TTIME, e, e_eff, y_err_int, dL_total_dt, dL_step)
+
    mag_step   = dabs(dL_step)
    if (mag_step == 0.d0) return
 
@@ -787,7 +825,7 @@ END Subroutine init_winch_elements
    endif
 
 
- Contains
+Contains
 
    Subroutine apply_winch_step(elems, N_elems, delta, applied_any)
 
@@ -836,6 +874,50 @@ END Subroutine init_winch_elements
      enddo
 
    END Subroutine apply_winch_step
+
+   Subroutine write_repos_log(TTIME_log, e_log, e_eff_log, e_int_log, dL_dt_log, dL_step_log)
+
+     real(8), intent(in) :: TTIME_log, e_log, e_eff_log, e_int_log, dL_dt_log, dL_step_log
+
+     integer :: line, elem, ncols, ios
+     real(8) :: line_len
+     real(8), allocatable :: row(:)
+
+     if (.not. repos_log_open) return
+     if (repos_log_unit <= 0) return
+     if (repos_line_count <= 0) return
+     if (.not. allocated(ALENG_ctrl)) return
+     if (.not. allocated(repos_line_start)) return
+     if (.not. allocated(repos_line_end  )) return
+
+     ncols = 9 + repos_line_count
+
+     allocate(row(ncols), stat=ios)
+     if (ios /= 0) return
+
+     row(1) = TTIME_log
+     row(2) = y_target_curr
+     row(3) = y_float
+     row(4) = ydot_float
+     row(5) = e_log
+     row(6) = e_eff_log
+     row(7) = e_int_log
+     row(8) = dL_dt_log
+     row(9) = dL_step_log
+
+     do line = 1, repos_line_count
+        line_len = 0.d0
+        do elem = repos_line_start(line), repos_line_end(line)
+           line_len = line_len + ALENG_ctrl(elem)
+        enddo
+        row(9 + line) = line_len
+     enddo
+
+     write(repos_log_unit,'(1000(ES24.16,1X))') row
+
+     deallocate(row)
+
+   END Subroutine write_repos_log
 
  END Subroutine update_repositioning
 !----------------------------------------------------------------------
@@ -1158,6 +1240,12 @@ END Subroutine init_winch_elements
     if (allocated(ALENG_max )) deallocate(ALENG_max)
     if (allocated(winch_elem_neg)) deallocate(winch_elem_neg)
     if (allocated(winch_elem_pos)) deallocate(winch_elem_pos)
+    if (allocated(repos_line_start)) deallocate(repos_line_start)
+    if (allocated(repos_line_end  )) deallocate(repos_line_end  )
+    if (repos_log_unit > 0) close(repos_log_unit)
+    repos_log_unit = -1
+    repos_log_open = .false.
+    repos_line_count = 0
 
 
  END Subroutine FINIT_tr
