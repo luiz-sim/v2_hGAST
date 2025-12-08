@@ -156,6 +156,7 @@ integer, save              :: repos_line_count = 0
  real(8), save              :: repos_DB_vel  = 0.d0
 integer, save              :: repos_log_unit = -1
 logical, save              :: repos_log_open = .false.
+ real(8), save              :: repos_log_next_time = 0.d0
  real(8), save              :: y_ref         = 0.d0
  real(8), save              :: y_target_curr = 0.d0
  real(8), save              :: y_target_prev = 0.d0

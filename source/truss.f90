@@ -389,6 +389,7 @@ Subroutine init_repositioning(path_truss)
   repos_DB_pos   = 0.d0
   repos_DB_vel   = 0.d0
   ydot_float     = 0.d0
+  repos_log_next_time = 0.d0
 
   if (repos_log_unit > 0) close(repos_log_unit)
   repos_log_unit = -1
@@ -687,11 +688,11 @@ Subroutine init_winch_elements()
 
    if (repos_log_unit > 0) close(repos_log_unit)
    repos_log_unit = 77
-   open(unit=repos_log_unit, file='repositioning_log.dat', status='replace', action='write', iostat=ios)
+   open(unit=repos_log_unit, file='log_repositioning.dat', status='replace', action='write', iostat=ios)
    if (ios /= 0) then
       repos_log_unit = -1
       repos_log_open = .false.
-      write(*,*) 'Repositioning: failed to open repositioning_log.dat; logging disabled'
+      write(*,*) 'Repositioning: failed to open log_repositioning.dat; logging disabled'
    else
       repos_log_open = .true.
    endif
@@ -713,6 +714,7 @@ END Subroutine init_winch_elements
    real(8), intent(in) :: DT
 
    real(8) :: e, e_eff, dL_total_dt, dL_step
+   real(8) :: term_p, term_i, term_d
    real(8) :: mag_step, short_step, long_step
    real(8) :: ydot_curr
    integer :: i
@@ -769,16 +771,29 @@ END Subroutine init_winch_elements
    e_eff = e
    if (in_pos_db) e_eff = 0.d0
 
-   dL_total_dt = repos_Kp * e_eff + repos_Ki * y_err_int - repos_Kd * ydot_curr
+   term_p = repos_Kp * e_eff
+   term_i = repos_Ki * y_err_int
+   term_d = repos_Kd * ydot_curr
+   dL_total_dt = term_p + term_i - term_d
 
-   if (in_pos_db .and. in_vel_db) dL_total_dt = 0.d0
+   if (in_pos_db .and. in_vel_db) then
+      term_p      = 0.d0
+      term_i      = 0.d0
+      term_d      = 0.d0
+      dL_total_dt = 0.d0
+   endif
 
    if (dL_total_dt >  repos_vwinch) dL_total_dt =  repos_vwinch
    if (dL_total_dt < -repos_vwinch) dL_total_dt = -repos_vwinch
 
    dL_step = dL_total_dt * DT
 
-   call write_repos_log(TTIME, e, e_eff, y_err_int, dL_total_dt, dL_step)
+   if (TTIME + 1.0d-9 >= repos_log_next_time) then
+      call write_repos_log(TTIME, e, dL_total_dt, term_p, term_i, term_d, dL_step)
+      do while (repos_log_next_time <= TTIME + 1.0d-9)
+         repos_log_next_time = repos_log_next_time + 1.d0
+      enddo
+   endif
 
    mag_step   = dabs(dL_step)
    if (mag_step == 0.d0) return
@@ -875,9 +890,9 @@ Contains
 
    END Subroutine apply_winch_step
 
-   Subroutine write_repos_log(TTIME_log, e_log, e_eff_log, e_int_log, dL_dt_log, dL_step_log)
+   Subroutine write_repos_log(TTIME_log, e_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log)
 
-     real(8), intent(in) :: TTIME_log, e_log, e_eff_log, e_int_log, dL_dt_log, dL_step_log
+     real(8), intent(in) :: TTIME_log, e_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log
 
      integer :: line, elem, ncols, ios
      real(8) :: line_len
@@ -890,7 +905,7 @@ Contains
      if (.not. allocated(repos_line_start)) return
      if (.not. allocated(repos_line_end  )) return
 
-     ncols = 9 + repos_line_count
+     ncols = 10 + repos_line_count
 
      allocate(row(ncols), stat=ios)
      if (ios /= 0) return
@@ -900,17 +915,18 @@ Contains
      row(3) = y_float
      row(4) = ydot_float
      row(5) = e_log
-     row(6) = e_eff_log
-     row(7) = e_int_log
-     row(8) = dL_dt_log
-     row(9) = dL_step_log
+     row(6) = dL_dt_log
+     row(7) = term_p_log
+     row(8) = term_i_log
+     row(9) = term_d_log
+     row(10) = dL_step_log
 
      do line = 1, repos_line_count
         line_len = 0.d0
         do elem = repos_line_start(line), repos_line_end(line)
            line_len = line_len + ALENG_ctrl(elem)
         enddo
-        row(9 + line) = line_len
+        row(10 + line) = line_len
      enddo
 
      write(repos_log_unit,'(1000(ES24.16,1X))') row
