@@ -386,8 +386,11 @@ Subroutine init_repositioning(path_truss)
   y_target_prev  = 0.d0
   y_err_int      = 0.d0
   repos_Kd       = 0.d0
+  repos_fcut     = 0.d0
   repos_DB_pos   = 0.d0
   repos_DB_vel   = 0.d0
+  y_err_filt     = 0.d0
+  y_err_filt_init= .false.
   ydot_float     = 0.d0
   repos_log_next_time = 0.d0
 
@@ -446,13 +449,23 @@ Subroutine init_repositioning(path_truss)
       if (len_trim(line_trim) == 0) cycle
       if (line_trim(1:1) == '!') cycle
 
-      read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki, repos_Kd, repos_DB_pos, repos_DB_vel
+      read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki, repos_Kd, repos_DB_pos, repos_DB_vel, repos_fcut
       if (ios /= 0 .or. N_repos_pts <= 0) then
          ios = 0
          repos_Kd     = 0.d0
          repos_DB_pos = 0.d0
          repos_DB_vel = 0.d0
-         read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
+         repos_fcut   = 0.d0
+         read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki, repos_Kd, repos_DB_pos, repos_DB_vel
+
+         if (ios /= 0 .or. N_repos_pts <= 0) then
+            ios = 0
+            repos_Kd     = 0.d0
+            repos_DB_pos = 0.d0
+            repos_DB_vel = 0.d0
+            repos_fcut   = 0.d0
+            read (line_trim,*, iostat=ios) N_repos_pts, repos_vwinch, repos_Kp, repos_Ki
+         endif
       endif
 
       if (ios /= 0 .or. N_repos_pts <= 0) then
@@ -515,7 +528,7 @@ Subroutine init_repositioning(path_truss)
       y_target_prev = 0.d0
    endif
 
-   write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki, ' Kd=', repos_Kd, ' DBpos=', repos_DB_pos, ' DBvel=', repos_DB_vel
+   write(*,*) 'Repositioning: controller active with ', N_repos_pts, ' pts; VWINCH=', repos_vwinch, ' Kp=', repos_Kp, ' Ki=', repos_Ki, ' Kd=', repos_Kd, ' DBpos=', repos_DB_pos, ' DBvel=', repos_DB_vel, ' Fc=', repos_fcut
 
    close(33)
 
@@ -577,7 +590,7 @@ Subroutine init_winch_elements()
       ALENG0_tr (e) = body_tr(e)%ALENG_tr
       ALENG_ctrl(e) = ALENG0_tr(e)
       ALENG_min (e) = 0.7d0  * ALENG0_tr(e)
-      ALENG_max (e) = 1.05d0 * ALENG0_tr(e)
+      ALENG_max (e) = 1.3d0  * ALENG0_tr(e)
    enddo
 
 !--- Identify line groupings based on contiguous connectivity
@@ -713,10 +726,10 @@ END Subroutine init_winch_elements
    real(8), intent(in) :: TTIME
    real(8), intent(in) :: DT
 
-   real(8) :: e, e_eff, dL_total_dt, dL_step
+   real(8) :: e, e_eff, e_filt, dL_total_dt, dL_step
    real(8) :: term_p, term_i, term_d
    real(8) :: mag_step, short_step, long_step
-   real(8) :: ydot_curr
+   real(8) :: ydot_curr, tau, alpha
    integer :: i
    logical :: applied, in_pos_db, in_vel_db
 
@@ -757,18 +770,36 @@ END Subroutine init_winch_elements
    ydot_curr = DR_float(2)
    ydot_float = ydot_curr
 
-   if (dabs(y_target_curr - y_target_prev) > 1.0d-9) then
-      y_err_int      = 0.d0
-      y_target_prev  = y_target_curr
+   if (.not. y_err_filt_init) then
+      y_err_filt      = e
+      y_err_filt_init = .true.
    endif
 
+   if (dabs(y_target_curr - y_target_prev) > 1.0d-9) then
+      y_err_int       = 0.d0
+      y_target_prev   = y_target_curr
+      y_err_filt      = e
+      y_err_filt_init = .true.
+   endif
+
+!--- Low-pass filter the position error before the PI terms
+   e_filt = e
+
+   if (repos_fcut > 0.d0) then
+      tau   = 1.d0 / (2.d0 * pi_tr * repos_fcut)
+      alpha = DT / (tau + DT)
+      e_filt = y_err_filt + alpha * (e - y_err_filt)
+   endif
+
+   y_err_filt = e_filt
+
 !--- Stop integrating inside the position deadband and damp sway when moving fast
-   in_pos_db = dabs(e        ) <= repos_DB_pos
+   in_pos_db = dabs(e_filt   ) <= repos_DB_pos
    in_vel_db = dabs(ydot_curr) <= repos_DB_vel
 
-   if (.not. in_pos_db) y_err_int = y_err_int + e * DT
+   if (.not. in_pos_db) y_err_int = y_err_int + e_filt * DT
 
-   e_eff = e
+   e_eff = e_filt
    if (in_pos_db) e_eff = 0.d0
 
    term_p = repos_Kp * e_eff
@@ -789,7 +820,7 @@ END Subroutine init_winch_elements
    dL_step = dL_total_dt * DT
 
    if (TTIME + 1.0d-9 >= repos_log_next_time) then
-      call write_repos_log(TTIME, e, dL_total_dt, term_p, term_i, term_d, dL_step)
+      call write_repos_log(TTIME, e, e_filt, dL_total_dt, term_p, term_i, term_d, dL_step)
       do while (repos_log_next_time <= TTIME + 1.0d-9)
          repos_log_next_time = repos_log_next_time + 1.d0
       enddo
@@ -890,9 +921,9 @@ Contains
 
    END Subroutine apply_winch_step
 
-   Subroutine write_repos_log(TTIME_log, e_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log)
+   Subroutine write_repos_log(TTIME_log, e_log, e_filt_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log)
 
-     real(8), intent(in) :: TTIME_log, e_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log
+     real(8), intent(in) :: TTIME_log, e_log, e_filt_log, dL_dt_log, term_p_log, term_i_log, term_d_log, dL_step_log
 
      integer :: line, elem, ncols, ios
      real(8) :: line_len
@@ -905,7 +936,7 @@ Contains
      if (.not. allocated(repos_line_start)) return
      if (.not. allocated(repos_line_end  )) return
 
-     ncols = 10 + repos_line_count
+     ncols = 11 + repos_line_count
 
      allocate(row(ncols), stat=ios)
      if (ios /= 0) return
@@ -915,18 +946,19 @@ Contains
      row(3) = y_float
      row(4) = ydot_float
      row(5) = e_log
-     row(6) = dL_dt_log
-     row(7) = term_p_log
-     row(8) = term_i_log
-     row(9) = term_d_log
-     row(10) = dL_step_log
+     row(6) = e_filt_log
+     row(7) = dL_dt_log
+     row(8) = term_p_log
+     row(9) = term_i_log
+    row(10) = term_d_log
+    row(11) = dL_step_log
 
      do line = 1, repos_line_count
         line_len = 0.d0
         do elem = repos_line_start(line), repos_line_end(line)
            line_len = line_len + ALENG_ctrl(elem)
         enddo
-        row(10 + line) = line_len
+        row(11 + line) = line_len
      enddo
 
      write(repos_log_unit,'(1000(ES24.16,1X))') row

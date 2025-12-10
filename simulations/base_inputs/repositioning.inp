@@ -1,7 +1,7 @@
 ! repositioning.inp
 ! -----------------------------------------------------------------------------
 ! Header format (one line):
-!   NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel
+!   NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel  Fcut
 ! where
 !   - Kp, Ki: PI gains acting on sway error (positive error shortens the
 !     upwind line / pays out the downwind line depending on the sign).
@@ -9,6 +9,9 @@
 !     oscillations but slows the maneuver. Start small (e.g. 10–30% of Kp in
 !     equivalent units) and increase until the sway response is acceptably
 !     overdamped without stalling.
+!   - Fcut: low-pass cutoff frequency [Hz] applied to the sway error feeding
+!     the PI terms. Use Fcut=1/Tcut to ignore oscillations faster than period
+!     Tcut (e.g. Fcut≈0.0083 for Tcut=120 s). Set to 0 to disable filtering.
 !   - DBpos: position deadband [m]. Inside this band, proportional action is
 !     suppressed and the integral term pauses to prevent windup.
 !   - DBvel: velocity deadband [m/s]. When both |error| <= DBpos and
@@ -25,8 +28,10 @@
 !      Kd or slightly raise Kp.
 !   5) Set DBpos and DBvel to the “done” tolerance (e.g. a few meters and a few
 !      cm/s) so actuation stops when close and slow.
+!   6) Pick Fcut to filter out fast sway oscillations that should not drive the
+!      PI terms (e.g. Fcut≈0.008–0.01 Hz to average out <120 s motions).
 ! -----------------------------------------------------------------------------
-6   0.05   0.02   0.001  0.02  1.0  0.05
+6   0.05   0.02   0.001  0.02  1.0  0.05  0.0083
 
 ! t[s]   y_target[m]
 0     0

@@ -63,13 +63,14 @@ built only with BEM support:
        2: Target sway (y_target)        [m  ]
        3: Floater sway (y_float)        [m  ]
        4: Floater sway velocity         [m/s]
-       5: Position error (e)            [m  ]
-       6: Commanded total dL/dt         [m/s]
-       7: Proportional term (Kp*e_eff)  [m/s]
-       8: Integral term    (Ki*∫e dt)   [m/s]
-       9: Damping term     (Kd*ydot)    [m/s]
-      10: Applied dL over the step      [m  ]
-      11..(10+Nlines): Total rest length of each mooring line [m] (lines follow the order detected in truss.inp)
+       5: Position error (raw)          [m  ]
+       6: Position error (filtered)     [m  ]
+       7: Commanded total dL/dt         [m/s]
+       8: Proportional term (Kp*e_eff)  [m/s]
+       9: Integral term    (Ki*∫e dt)   [m/s]
+      10: Damping term     (Kd*ydot)    [m/s]
+      11: Applied dL over the step      [m  ]
+      12..(11+Nlines): Total rest length of each mooring line [m] (lines follow the order detected in truss.inp)
 ** Modal analysis
       eigen.dat
       modeRZZZ.dat        ,ZZZ:mode,
