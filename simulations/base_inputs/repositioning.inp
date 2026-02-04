@@ -3,19 +3,20 @@
 ! Header format (one line):
 !   NPTS  VWINCH  Kp  Ki  Kd  DBpos  DBvel  Fcut
 ! where
-!   - Kp, Ki: PI gains acting on sway error (positive error shortens the
-!     upwind line / pays out the downwind line depending on the sign).
-!   - Kd: virtual damping opposing sway velocity (in m/s); larger Kd reduces
+!   - Kp, Ki: PI gains acting on surge/sway error components (positive error
+!     shortens the line pointing toward the target while paying out opposing
+!     lines to keep net length near constant).
+!   - Kd: virtual damping opposing surge/sway velocity (in m/s); larger Kd reduces
 !     oscillations but slows the maneuver. Start small (e.g. 10–30% of Kp in
 !     equivalent units) and increase until the sway response is acceptably
 !     overdamped without stalling.
-!   - Fcut: low-pass cutoff frequency [Hz] applied to the sway error feeding
+!   - Fcut: low-pass cutoff frequency [Hz] applied to the horizontal error feeding
 !     the PI terms. Use Fcut=1/Tcut to ignore oscillations faster than period
 !     Tcut (e.g. Fcut≈0.0083 for Tcut=120 s). Set to 0 to disable filtering.
 !   - DBpos: position deadband [m]. Inside this band, proportional action is
 !     suppressed and the integral term pauses to prevent windup.
 !   - DBvel: velocity deadband [m/s]. When both |error| <= DBpos and
-!     |ydot| <= DBvel, winching stops entirely so the controller does not
+!     |speed| <= DBvel, winching stops entirely so the controller does not
 !     re-energize low-damped modes near the target.
 !   - VWINCH: rate limit [m/s] applied to the commanded rest-length change.
 ! Tuning guidance:
@@ -33,11 +34,12 @@
 ! -----------------------------------------------------------------------------
 6   0.05   0.02   0.001  0.02  1.0  0.05  0.0083
 
-! t[s]   y_target[m]
-0     0
-100   0
-101  50
-300  50
-301 -50
-500 -50
-600   0
+! If only two columns are provided below (t, y_target), x_target is assumed 0.
+! t[s]   x_target[m]  y_target[m]
+0     0     0
+100   0     0
+101  20    50
+300  20    50
+301 -20   -50
+500 -20   -50
+600   0     0

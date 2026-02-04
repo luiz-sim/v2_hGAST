@@ -59,18 +59,26 @@ built only with BEM support:
       z_elevation.dat
 ** Mooring repositioning diagnostics
       log_repositioning.dat : Controller log written every second of simulated time (no header)
-       1: Time                          [s  ]
-       2: Target sway (y_target)        [m  ]
-       3: Floater sway (y_float)        [m  ]
-       4: Floater sway velocity         [m/s]
-       5: Position error (raw)          [m  ]
-       6: Position error (filtered)     [m  ]
-       7: Commanded total dL/dt         [m/s]
-       8: Proportional term (Kp*e_eff)  [m/s]
-       9: Integral term    (Ki*∫e dt)   [m/s]
-      10: Damping term     (Kd*ydot)    [m/s]
-      11: Applied dL over the step      [m  ]
-      12..(11+Nlines): Total rest length of each mooring line [m] (lines follow the order detected in truss.inp)
+       1: Time                           [s  ]
+       2: Target surge (x_target)        [m  ]
+       3: Target sway  (y_target)        [m  ]
+       4: Floater surge (x_float)        [m  ]
+       5: Floater sway  (y_float)        [m  ]
+       6: Floater surge velocity         [m/s]
+       7: Floater sway velocity          [m/s]
+       8: Position error x (raw)         [m  ]
+       9: Position error y (raw)         [m  ]
+      10: Position error x (filtered)    [m  ]
+      11: Position error y (filtered)    [m  ]
+      12: Commanded total dL/dt (x)      [m/s]
+      13: Commanded total dL/dt (y)      [m/s]
+      14: Proportional term (Kp*e_eff,x) [m/s]
+      15: Proportional term (Kp*e_eff,y) [m/s]
+      16: Integral term    (Ki*∫e dt,x)  [m/s]
+      17: Integral term    (Ki*∫e dt,y)  [m/s]
+      18: Damping term     (Kd*xdot)     [m/s]
+      19: Damping term     (Kd*ydot)     [m/s]
+      20..(19+Nlines): Total rest length of each mooring line [m] (lines follow the order detected in truss.inp)
 ** Modal analysis
       eigen.dat
       modeRZZZ.dat        ,ZZZ:mode,
